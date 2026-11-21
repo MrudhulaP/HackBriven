@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.database.session import Base, engine, get_db, SessionLocal
 from app.database.seed import seed_demo_data
-from app.api import auth, customers, transactions, voice, assistant, reports, sync
+from app.api import auth, customers, transactions, voice, assistant, reports, sync, receipt
 
 # Initialize database schema
 Base.metadata.create_all(bind=engine)
@@ -21,7 +21,7 @@ app = FastAPI(
 # CORS configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins for local and remote dev
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -43,6 +43,7 @@ app.include_router(voice.router, prefix=settings.API_V1_STR)
 app.include_router(assistant.router, prefix=settings.API_V1_STR)
 app.include_router(reports.router, prefix=settings.API_V1_STR)
 app.include_router(sync.router, prefix=settings.API_V1_STR)
+app.include_router(receipt.router, prefix=settings.API_V1_STR)
 
 @app.get("/health")
 def health_check():
@@ -50,7 +51,9 @@ def health_check():
         "status": "healthy",
         "app": settings.PROJECT_NAME,
         "tagline": settings.PROJECT_TAGLINE,
-        "version": settings.VERSION
+        "version": settings.VERSION,
+        "encryption": "SQLCipher-compatible encrypted SQLite",
+        "supported_languages": ["en", "hi", "kn", "te", "ta"]
     }
 
 @app.post("/api/seed/reset")

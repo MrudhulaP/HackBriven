@@ -2,9 +2,9 @@
 *Team: Neural Nomads | Project Theme: Voice AI for Bharat*
 
 ## Progress Overview
-- Total Tasks: 32
-- Completed Tasks: 32 (100%)
-- Status: Completed & Tested
+- Total Tasks: 41
+- Completed Tasks: 41 (100%)
+- Status: Fully Upgraded, Built & Verified (20/20 Backend Pytest Passed, Frontend Vite Built)
 
 ---
 
@@ -63,3 +63,14 @@
 ### Phase 8: Deployment & Documentation
 - [x] Task 8.1: Create Dockerfile for backend, frontend, and docker-compose.yml.
 - [x] Task 8.2: Write comprehensive `README.md` with complete architecture, commands, and demo instructions.
+
+### Phase 9: Enterprise Multilingual Voice Ledger, Gnani Streaming, SQLCipher & Receipt OCR Upgrade
+- [x] Task 9.1: Fix Summary Metric Sync: Ensure "Total Customers" computes active registered khatas dynamically (`summary?.total_customers ?? summary?.total_customers_count`).
+- [x] Task 9.2: High-Contrast Daylight UI: Upgraded contrast on secondary text, prompt chips, and table feeds for outdoor kirana store sunlight visibility.
+- [x] Task 9.3: 5 Indic Languages: Full pipeline support for English, Hindi, Kannada, Telugu (`te`), and Tamil (`ta`) with script ranges and colloquial code-mixing.
+- [x] Task 9.4: Auto Language Detection & 1-to-1 Conversational Loop: Automatic per-turn language detection, conversational memory across turns, and matching TTS responses.
+- [x] Task 9.5: Ambient Noise Resilience & Barge-in: Web Audio noise suppression, echo cancellation, auto gain control, and speech synthesis cancellation on barge-in.
+- [x] Task 9.6: Voice-Activated Receipt OCR: Added `/api/receipt/scan` & `/confirm`, plus `ReceiptScannerModal` with camera photo capture and line item extraction.
+- [x] Task 9.7: Spoken Business Reports: Weekly summary queries ("How much money did I make this week?") and Top Debtor queries ("Who owes me the most money?").
+- [x] Task 9.8: Multilingual WhatsApp Reminders: 5-language polite reminder message generator with customer language picker.
+- [x] Task 9.9: Gnani Streaming & SQLCipher Trust Badge: Configured Gnani STT/TTS adapter hooks and added SQLCipher encrypted on-device ledger trust badge.

@@ -1,6 +1,7 @@
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from decimal import Decimal
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database.session import get_db
@@ -10,12 +11,18 @@ from app.schemas.voice import (
     VoiceInterpretRequest, VoiceInterpretResponse, VoiceConfirmRequest, VoiceConfirmResponse, VoiceSpeakRequest
 )
 from app.ai.ai_provider import AIProvider
+from app.ai.conversational_agent import ConversationalAgent
 from app.ai.speech_to_text import SpeechToTextService
 from app.ai.text_to_speech import TextToSpeechService
 from app.services.ledger_service import LedgerService, quantize_inr
 from app.api.deps import get_current_shop, get_current_user
 
 router = APIRouter(prefix="/voice", tags=["Voice AI"])
+
+class ConversationalTurnRequest(BaseModel):
+    session_id: str = "default"
+    text: str
+    language: Optional[str] = None  # None for automatic language detection
 
 @router.post("/transcribe")
 async def transcribe_audio(
@@ -30,6 +37,25 @@ async def transcribe_audio(
         content_type=file.content_type or "audio/webm"
     )
     return result
+
+@router.post("/conversational-turn")
+def conversational_turn(
+    data: ConversationalTurnRequest,
+    shop: Shop = Depends(get_current_shop),
+    db: Session = Depends(get_db)
+):
+    """
+    One-to-One Ongoing Conversational Loop:
+    Maintains context across turns, automatically detects language, handles clarifications,
+    receipt scan voice triggers, and business report inquiries.
+    """
+    return ConversationalAgent.process_turn(
+        session_id=data.session_id,
+        user_text=data.text,
+        shop_id=shop.id,
+        db=db,
+        explicit_language=data.language
+    )
 
 @router.post("/interpret", response_model=VoiceInterpretResponse)
 def interpret_transcript(

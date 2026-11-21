@@ -1,4 +1,4 @@
-export type Language = 'hi' | 'kn' | 'en';
+export type Language = 'hi' | 'kn' | 'en' | 'te' | 'ta';
 
 export interface User {
   id: string;
@@ -43,7 +43,7 @@ export interface Transaction {
   transaction_date: string;
   created_at: string;
   description?: string;
-  input_method: 'VOICE' | 'MANUAL' | 'OFFLINE_SYNC';
+  input_method: 'VOICE' | 'MANUAL' | 'OFFLINE_SYNC' | 'SCAN_BILL';
   status: 'CONFIRMED' | 'PENDING' | 'REVERSED';
   idempotency_key?: string;
   reversal_of_transaction_id?: string;
@@ -107,6 +107,42 @@ export interface DashboardSummary {
   today_credit: number;
   today_payment: number;
   total_customers: number;
+  total_customers_count?: number;
+  total_customers_with_balance?: number;
+}
+
+export interface ReceiptScanItem {
+  name: string;
+  quantity?: number;
+  price?: number;
+}
+
+export interface ReceiptScanResult {
+  vendor_name: string;
+  total_amount: number;
+  date: string;
+  items: ReceiptScanItem[];
+  raw_text?: string;
+  confidence?: number;
+}
+
+export interface ConversationalTurnRequest {
+  session_id: string;
+  text: string;
+  language?: string;
+}
+
+export interface ConversationalTurnResponse {
+  session_id: string;
+  detected_language: Language;
+  primary_intent: string;
+  text_response: string;
+  spoken_response: string;
+  requires_confirmation: boolean;
+  requires_clarification: boolean;
+  proposed_action?: any;
+  clarification_question?: string;
+  data?: any;
 }
 
 export interface DailyReport {

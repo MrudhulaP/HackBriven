@@ -7,7 +7,9 @@ import {
   DashboardSummary,
   DailyReport,
   MonthlyReport,
-  OfflineQueueItem
+  OfflineQueueItem,
+  ReceiptScanResult,
+  ConversationalTurnResponse
 } from '../types';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
@@ -150,6 +152,12 @@ export const api = {
       body: JSON.stringify({ text, language, input_source: 'VOICE' }),
     }),
 
+  conversationalTurn: (data: { session_id?: string; text: string; language?: string }) =>
+    request<ConversationalTurnResponse>('/voice/conversational-turn', {
+      method: 'POST',
+      body: JSON.stringify({ session_id: data.session_id || 'default', text: data.text, language: data.language }),
+    }),
+
   confirmVoiceTransactions: (data: VoiceConfirmRequest) =>
     request<VoiceConfirmResponse>('/voice/confirm', {
       method: 'POST',
@@ -166,6 +174,37 @@ export const api = {
     });
   },
 
+  // Receipt & Bill OCR
+  scanReceipt: async (file: File | Blob) => {
+    const formData = new FormData();
+    formData.append('file', file, 'receipt.jpg');
+    return request<ReceiptScanResult>('/receipt/scan', {
+      method: 'POST',
+      body: formData,
+    });
+  },
+
+  confirmReceipt: (data: {
+    vendor_or_customer_name: string;
+    amount: number;
+    type?: string;
+    transaction_date?: string;
+    description?: string;
+  }) =>
+    request<{
+      success: boolean;
+      transaction_id: string;
+      customer_id: string;
+      customer_name: string;
+      amount: number;
+      type: string;
+      new_balance: number;
+      message: string;
+    }>('/receipt/confirm', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
   // Assistant Query
   queryAssistant: (query: string, language?: string) =>
     request<{ query: string; answer: string; spoken_answer: string; data?: any }>('/assistant/query', {
@@ -176,6 +215,9 @@ export const api = {
   // Reports
   getDashboardSummary: () =>
     request<DashboardSummary>('/reports/outstanding'),
+
+  getWeeklyReport: () =>
+    request<any>('/reports/weekly'),
 
   getDailyReport: (date?: string) => {
     const qs = date ? `?target_date=${date}` : '';

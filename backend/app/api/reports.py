@@ -19,6 +19,14 @@ def get_daily_report(
 ):
     return ReportService.get_daily_report(db, shop.id, target_date)
 
+@router.get("/weekly")
+def get_weekly_report(
+    target_date: Optional[date] = Query(None),
+    shop: Shop = Depends(get_current_shop),
+    db: Session = Depends(get_db)
+):
+    return ReportService.get_weekly_report(db, shop.id, target_date)
+
 @router.get("/monthly", response_model=MonthlyReportResponse)
 def get_monthly_report(
     year: Optional[int] = Query(None),
@@ -37,8 +45,9 @@ def get_outstanding_summary(
     summary = ReportService.get_dashboard_summary(db, shop.id)
     return OutstandingSummaryResponse(
         total_outstanding=summary["total_outstanding"],
-        total_customers_with_balance=0,  # can calculate if needed
+        total_customers_with_balance=summary.get("total_customers_with_balance", 0),
         total_credit_today=daily["total_credit"],
         total_payment_today=daily["total_payment"],
-        total_customers_count=summary["total_customers"]
+        total_customers=summary["total_customers"],
+        total_customers_count=summary["total_customers_count"]
     )

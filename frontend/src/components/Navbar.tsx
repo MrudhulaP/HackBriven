@@ -88,7 +88,7 @@ export const Navbar: React.FC = () => {
             id="lang-select"
             value={language}
             onChange={(e) => setLanguage(e.target.value as any)}
-            className="pl-8 pr-7 py-1.5 text-xs font-semibold bg-cream-50 border border-cream-300 rounded-lg text-forest-900 focus:outline-none focus:ring-2 focus:ring-forest-600 cursor-pointer appearance-none shadow-2xs"
+            className="pl-8 pr-7 py-1.5 text-xs font-black bg-white border-2 border-cream-300 rounded-xl text-forest-950 focus:outline-none focus:ring-2 focus:ring-forest-600 cursor-pointer appearance-none shadow-2xs"
           >
             {languagesList.map((l) => (
               <option key={l.code} value={l.code}>

@@ -38,4 +38,5 @@ class OutstandingSummaryResponse(BaseModel):
     total_customers_with_balance: int
     total_credit_today: Decimal
     total_payment_today: Decimal
+    total_customers: int
     total_customers_count: int

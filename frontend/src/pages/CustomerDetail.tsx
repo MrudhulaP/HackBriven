@@ -81,6 +81,10 @@ export const CustomerDetail: React.FC = () => {
       ? `ನಮಸ್ಕಾರ ${customer.name}, ನಿಮ್ಮ ಅಂಗಡಿ ಖಾತೆಯಲ್ಲಿ ₹${bal} ಬಾಕಿ ಉಳಿದಿದೆ. ದಯವಿಟ್ಟು ಪಾವತಿಸಿ. ಧನ್ಯವಾದಗಳು!`
       : language === 'hi'
       ? `नमस्ते ${customer.name}, आपकी दुकान के खाते में ₹${bal} का बकाया बाकी है। कृपया जल्द भुगतान करें। धन्यवाद!`
+      : language === 'te'
+      ? `నమస్కారం ${customer.name} గారు, మా దుకాణం ఖాతాలో మీ బాకీ ₹${bal} ఉంది. దయచేసి త్వరగా చెల్లించండి. ధన్యవాదాలు!`
+      : language === 'ta'
+      ? `வணக்கம் ${customer.name}, எங்கள் கடை கணக்கில் உங்கள் பாக்கித் தொகை ₹${bal} உள்ளது. தயவுசெய்து விரைவில் செலுத்தவும். நன்றி!`
       : `Hello ${customer.name}, this is a gentle reminder that ₹${bal} is pending in your account at our shop. Thank you!`;
 
     const phone = customer.mobile ? customer.mobile.replace(/\D/g, '') : '';
