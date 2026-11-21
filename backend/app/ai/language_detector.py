@@ -6,7 +6,8 @@ class IndicLanguageDetector:
     KANNADA_WORDS = {
         "saala", "udhar", "kottanu", "kotte", "kottidare", "bandide", "bantu", "eshtu", "ide", 
         "illa", "ninne", "ivattu", "naale", "roopaayi", "rupayi", "ge", "inda", "khata", "baredko",
-        "mattu", "haaku", "madu", "beku", "yaru", "tumba", "ella", "nodona", "hege", "saalavaagi"
+        "mattu", "haaku", "madu", "beku", "yaru", "tumba", "ella", "nodona", "hege", "saalavaagi",
+        "nanage", "kodabeku", "kottiddare", "baredkoli", "serisi"
     }
     
     # Common Hindi markers (script and romanized)
@@ -14,7 +15,8 @@ class IndicLanguageDetector:
         "udhaar", "udhar", "diya", "diye", "diye the", "diya tha", "liya", "liye", "jama", 
         "baaki", "baki", "kitna", "kitne", "hai", "hain", "tha", "thi", "the", "ka", "ki", 
         "ke", "ko", "ne", "se", "aur", "kal", "aaj", "rupaye", "rupayee", "rupee", "karo", 
-        "hisaab", "batao", "dikhao", "sabse", "zyada", "paisa", "paise", "bhai", "arre", "parcha"
+        "hisaab", "batao", "dikhao", "sabse", "zyada", "paisa", "paise", "bhai", "arre", "parcha",
+        "mujhe", "dena", "dena hai", "lena", "lena hai", "likho", "likh"
     }
 
     # Common Telugu markers (script and romanized)
@@ -22,7 +24,8 @@ class IndicLanguageDetector:
         "appu", "ichanu", "ichadu", "vachindi", "vachayi", "enta", "entha", "baki", "baaki",
         "ninna", "eroju", "repu", "rupailu", "rupayalu", "undi", "ledu", "ivvali", "kavali",
         "choodu", "billu", "cheyyi", "garu", "anna", "leka", "pettuko", "rasuko", "kottu",
-        "evariki", "ekkuva", "chupinchu", "katha", "varam"
+        "evariki", "ekkuva", "chupinchu", "katha", "varam", "naaku", "naaki", "inka", "rayi",
+        "raayi", "roopayalu", "rupeelu", "chellincharu"
     }
 
     # Common Tamil markers (script and romanized)
@@ -30,7 +33,7 @@ class IndicLanguageDetector:
         "kadan", "koduthen", "koduthar", "vanthuchu", "vandhathu", "evalavu", "evvalavu", "baki",
         "nerru", "netru", "inru", "indru", "naalai", "irukku", "illai", "rubai", "roobai", "thanga",
         "kodu", "paru", "pannu", "thambi", "kanakku", "ezhudhu", "yaarukku", "adhigam", "kaattu",
-        "vaaram", "pothum"
+        "vaaram", "pothum", "enakku", "thara", "vendum", "kuduthan", "kudutha", "tharanum"
     }
 
     # Unicode ranges

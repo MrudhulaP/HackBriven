@@ -96,16 +96,20 @@ class IntentClassifier:
         ]):
             return cls.INTENT_MONTHLY_SUMMARY, 0.95
 
-        # 8. Check Balance Query
-        if any(w in low for w in [
-            "kitna baaki", "kitna baki", "balance", "how much", "owe", "owes",
+        has_number = bool(re.search(r'\d+', low) or any(w in low for w in [
+            "sau", "hazaar", "thousand", "hundred", "nooru", "roopaayi", "rupailu", "rubai", "vanda", "veyyi"
+        ]))
+
+        # 8. Check Balance Query (Only when asking for balance, not stating an amount to record)
+        if (not has_number or "how much" in low or "kitna" in low or "eshtu" in low or "enta" in low or "evalavu" in low) and any(w in low for w in [
+            "kitna baaki", "kitna baki", "balance", "how much",
             "eshtu baaki", "eshtu saala", "eshtu ide", "enta baki", "entha baki",
             "evalavu baki", "evvalavu baki", "kitna dena hai", "kitna lena hai"
         ]):
             return cls.INTENT_CHECK_BALANCE, 0.95
 
         # 9. Check History / Transactions Query
-        if any(w in low for w in ["last", "history", "pichla", "pichle", "kab payment", "transactions", "last five", "last three", "entry"]):
+        if any(w in low for w in ["history", "pichla", "pichle", "kab payment", "transactions", "last five", "last three"]):
             return cls.INTENT_VIEW_HISTORY, 0.92
 
         # 10. Check List Customers
@@ -116,33 +120,50 @@ class IntentClassifier:
         if any(w in low for w in ["help", "kaise use", "madad", "sahayata", "sahayam", "udhavi", "what can you do"]):
             return cls.INTENT_GENERAL_HELP, 0.95
 
-        # 12. Financial Entry Check (Credit vs Payment across 5 languages)
+        # 12. Financial Entry Check (Directional Credit vs Payment across 5 languages)
         credit_keywords = [
-            "udhaar", "udhar", "credit", "saala", "baredko", "likho", "liya", "liye",
-            "appu", "kadan", "pettuko", "rasuko", "ezhudhu", "diya credit", "gave credit"
+            # English
+            "should pay", "needs to pay", "must pay", "owes me", "owes", "owe me", "give credit",
+            "credit of", "credit for", "to pay me", "has to pay", "credit", "gave credit",
+            # Hindi / Hinglish
+            "udhaar", "udhar", "dena hai", "lena hai", "likho", "likh do", "likh", "उधार", "देना है",
+            # Telugu / Tenglish
+            "ivvali", "ivvalasi", "appu", "rayi", "raayi", "pettuko", "rasuko", "appu rayi", "appu rayandi",
+            "ఇవ్వాలి", "అప్పు", "రాయి", "రాయండి", "అప్పు రాయి",
+            # Kannada / Kanglish
+            "saala", "baredko", "baredkoli", "kodabeku", "ಕೊಡಬೇಕು", "ಸಾಲ", "ಬರೆದುಕೊ",
+            # Tamil / Tanglish
+            "kadan", "ezhudhu", "thara vendum", "tharanum", "kodukanum", "கடன்", "எழுது", "தர வேண்டும்"
         ]
+
         payment_keywords = [
-            "diya", "diye", "paid", "payment", "jama", "jama kiya", "bhara", "bandide",
-            "kottanu", "received", "chuka", "ichanu", "vachindi", "koduthen", "vanthuchu", "thantan"
+            # English
+            "paid me", "paid", "received", "received from", "payment of", "payment from", "cleared", "settled", "payment",
+            # Hindi / Hinglish
+            "diya", "diye", "diye the", "diya tha", "jama", "jama kiya", "bhara", "mila", "aaya", "जमा", "दिया", "दिए",
+            # Telugu / Tenglish
+            "vachindi", "ichadu", "ichanu", "chellimpu", "chellincharu", "payment vachindi",
+            "వచ్చింది", "ఇచ్చాడు", "ఇచ్చాను", "చెల్లించారు", "చెల్లింపు",
+            # Kannada / Kanglish
+            "bandide", "kottanu", "kotte", "kottidare", "payment bantu", "ಪಾವತಿ", "ಬಂದಿದೆ", "ಕೊಟ್ಟನು",
+            # Tamil / Tanglish
+            "vanthuchu", "vandhathu", "koduthen", "koduthar", "varavu", "வரவு", "வந்தது", "கொடுத்தார்"
         ]
+
+        # Explicit combinations e.g. "credit diya" / "udhaar diya" -> credit
+        if any(p in low for p in ["credit diya", "udhaar diya", "appu ichanu", "kadan koduthen"]):
+            return cls.INTENT_ADD_CREDIT, 0.98
 
         has_credit_words = any(w in low for w in credit_keywords)
         has_payment_words = any(w in low for w in payment_keywords)
-        has_number = bool(re.search(r'\d+', low) or any(w in low for w in [
-            "sau", "hazaar", "thousand", "hundred", "nooru", "roopaayi", "rupailu", "rubai"
-        ]))
-
-        # E.g. "credit diya" / "udhaar diya" -> credit
-        if "credit diya" in low or "udhaar diya" in low or "appu ichanu" in low or "kadan koduthen" in low:
-            return cls.INTENT_ADD_CREDIT, 0.96
 
         if has_credit_words and not has_payment_words:
-            return cls.INTENT_ADD_CREDIT, 0.95
+            return cls.INTENT_ADD_CREDIT, 0.98
 
         if has_payment_words and not has_credit_words:
-            return cls.INTENT_RECORD_PAYMENT, 0.95
+            return cls.INTENT_RECORD_PAYMENT, 0.98
 
-        # Ambiguous case: has number & customer or "ka 500" without explicit udhaar or diya
+        # Ambiguous case: has number & customer but missing directional indicators (e.g. "Ramesh 300", "Ramesh ka 500")
         if has_number and not has_credit_words and not has_payment_words:
             return cls.INTENT_AMBIGUOUS_TRANSACTION, 0.70
 

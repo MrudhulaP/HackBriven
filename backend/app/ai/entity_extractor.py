@@ -37,7 +37,19 @@ class EntityExtractor:
         "rupaye", "rupees", "roopaayi", "rupailu", "rubai", "rs", "inr", "show", "me", "how", "much",
         "balance", "baaki", "baki", "actually", "it", "was", "not", "undo", "last", "reverse", "collection",
         "hisaab", "tingala", "eshtu", "ide", "kottanu", "bandide", "batao", "dikhao", "sabse", "zyada",
-        "who", "which", "bill", "scan", "parcha", "invoice", "receipt", "kadan", "appu", "ichanu", "koduthen"
+        "who", "which", "bill", "scan", "parcha", "invoice", "receipt", "kadan", "appu", "ichanu", "koduthen",
+        "should", "pay", "needs", "must", "received", "from", "giving", "ivvali", "inka", "naaki", "naaku",
+        "thara", "vendum", "kodabeku", "chellimpu", "varavu"
+    }
+
+    INDIC_NAME_MAP = {
+        "రమేష్": "Ramesh",
+        "రమేశ్": "Ramesh",
+        "సురేష్": "Suresh",
+        "सुरेश": "Suresh",
+        "रमेश": "Ramesh",
+        "ரமேஷ்": "Ramesh",
+        "ರಮೇಶ್": "Ramesh"
     }
 
     @classmethod
@@ -100,6 +112,17 @@ class EntityExtractor:
             for kc in known_customers:
                 if re.search(r'\b' + re.escape(kc.lower()) + r'\b', text_low):
                     return kc
+            # Check Indic transliterated name map
+            for ind_name, eng_name in cls.INDIC_NAME_MAP.items():
+                if ind_name in text and eng_name in known_customers:
+                    return eng_name
+
+        # Match phrases like "from Ramesh", "for Ramesh", "to Ramesh"
+        from_for_match = re.search(r'\b(?:from|for|to)\s+([A-Za-z\u0900-\u097F\u0C80-\u0CFF\u0C00-\u0C7F\u0B80-\u0BFF]{3,25})\b', text, re.IGNORECASE)
+        if from_for_match:
+            cand = from_for_match.group(1).capitalize()
+            if cand.lower() not in cls.NON_NAMES:
+                return cls.INDIC_NAME_MAP.get(cand, cand)
 
         # Match Unicode (Devanagari, Kannada, Telugu, Tamil) or English words before postpositions
         # E.g. "Ramesh ka", "Ramesh ge", "Ramesh ki", "Ramesh ku", "Ramesh to"
@@ -108,20 +131,21 @@ class EntityExtractor:
         if match:
             candidate = match.group(1).capitalize()
             if candidate.lower() not in cls.NON_NAMES:
-                return candidate
+                return cls.INDIC_NAME_MAP.get(candidate, candidate)
 
-        # Phrases like "Ramesh paid 300", "Ramesh appu", "Ramesh kadan", "Ramesh saala"
-        match2 = re.search(r'\b([A-Za-z]{3,25})\s+(?:paid|owes|gave|sent|appu|kadan|saala|udhaar)\b', text, re.IGNORECASE)
+        # Phrases like "Ramesh should pay", "Ramesh owes", "Ramesh paid 300", "Ramesh appu", "Ramesh kadan", "Ramesh saala"
+        match2 = re.search(r'\b([A-Za-z\u0900-\u097F\u0C80-\u0CFF\u0C00-\u0C7F\u0B80-\u0BFF]{3,25})\s+(?:should|needs|must|paid|owes|gave|sent|appu|kadan|saala|udhaar|has)\b', text, re.IGNORECASE)
         if match2:
             candidate = match2.group(1).capitalize()
             if candidate.lower() not in cls.NON_NAMES:
-                return candidate
+                return cls.INDIC_NAME_MAP.get(candidate, candidate)
 
         # Fallback to first non-stop word
         words = text.split()
         if words:
             first = re.sub(r'[^A-Za-z\u0900-\u097F\u0C80-\u0CFF\u0C00-\u0C7F\u0B80-\u0BFF]', '', words[0])
             if len(first) >= 3 and first.lower() not in cls.NON_NAMES:
-                return first.capitalize()
+                cand = cls.INDIC_NAME_MAP.get(first, first.capitalize())
+                return cand
 
         return None
