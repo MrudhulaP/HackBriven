@@ -7,7 +7,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 export class VoiceClient {
   constructor(onEvent, { engine, lang, bargeIn }) {
     Object.assign(this, { onEvent, engine, lang, bargeIn })
-    this.replyLang = lang === 'auto' ? 'hi' : lang
+    this.replyLang = lang === 'auto' ? 'en' : lang
     this.micOn = false
     this.speaking = false
     this.sources = []
@@ -116,9 +116,24 @@ export class VoiceClient {
 
   // ---------- playback (starts on the first chunk)
   ensureCtx() {
-    if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)()
+    if (!this.ctx) {
+      this.ctx = new (window.AudioContext || window.webkitAudioContext)()
+      this.outAn = this.ctx.createAnalyser() // the reply's voice, for the rings
+      this.outAn.fftSize = 128
+      this.outAn.smoothingTimeConstant = 0.75
+      this.outAn.connect(this.ctx.destination)
+    }
     if (this.ctx.state === 'suspended') this.ctx.resume()
     return this.ctx
+  }
+
+  /** Frequency magnitudes (0–255) of whoever is talking: the shopkeeper while listening, the reply while speaking. */
+  levels() {
+    const an = this.speaking ? this.outAn : this.micOn ? this.inAn : null
+    if (!an) return null
+    const bins = new Uint8Array(an.frequencyBinCount)
+    an.getByteFrequencyData(bins)
+    return bins
   }
 
   onAudio(buf) {
@@ -142,7 +157,7 @@ export class VoiceClient {
     for (let i = 0; i < pcm.length; i++) ch[i] = pcm[i] / 32768
     const src = ctx.createBufferSource()
     src.buffer = ab
-    src.connect(ctx.destination)
+    src.connect(this.outAn)
     const at = Math.max(this.nextTime, ctx.currentTime + 0.03)
     src.start(at)
     this.nextTime = at + ab.duration
@@ -160,8 +175,6 @@ export class VoiceClient {
   reportReply(playAt) {
     if (this.t0 != null) this.onEvent({ type: 'latency', reply: Math.round(playAt - this.t0) })
     this.t0 = null
-    this.seq = 0
-    this.latestReq = null // only the reply to this request is shown
   }
 
   stopPlayback() {
@@ -172,11 +185,12 @@ export class VoiceClient {
   }
 
   speakLocal(text, lang) {
-    if (!window.speechSynthesis) return
+    if (!window.speechSynthesis) { this.onEvent({ type: 'playbackFailed' }); return }
     const u = new SpeechSynthesisUtterance(text)
-    u.lang = SPEECH_LANG[lang] || 'hi-IN'
+    u.lang = SPEECH_LANG[lang] || 'en-IN'
     u.onstart = () => { this.setSpeaking(true); this.reportReply(performance.now()) }
     u.onend = () => this.setSpeaking(false)
+    u.onerror = (e) => { this.setSpeaking(false); if (e.error !== 'interrupted' && e.error !== 'canceled') this.onEvent({ type: 'playbackFailed' }) }
     speechSynthesis.cancel()
     speechSynthesis.speak(u)
   }
@@ -193,17 +207,25 @@ export class VoiceClient {
     if (this.engine === 'browser') return this.startRecognition()
     try {
       this.stream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, voiceIsolation: true, channelCount: 1 },
       })
-    } catch {
-      this.onEvent({ type: 'nomic' })
+    } catch (e) {
+      this.onEvent({ type: 'nomic', reason: e?.name === 'NotFoundError' || e?.name === 'OverconstrainedError' ? 'missing' : 'denied' })
       return false
     }
+    const applied = this.stream.getAudioTracks()[0]?.getSettings?.() || {}
+    this.onEvent({ type: 'micSettings', settings: {
+      noiseSuppression: applied.noiseSuppression, echoCancellation: applied.echoCancellation,
+      autoGainControl: applied.autoGainControl, voiceIsolation: applied.voiceIsolation } })
     if (!this.workletLoaded) {
       await this.ctx.audioWorklet.addModule('/pcm-worklet.js')
       this.workletLoaded = true
     }
     this.src = this.ctx.createMediaStreamSource(this.stream)
+    this.inAn = this.ctx.createAnalyser() // same stream as the one sent to Gnani, only read for the rings
+    this.inAn.fftSize = 128
+    this.inAn.smoothingTimeConstant = 0.7
+    this.src.connect(this.inAn)
     this.node = new AudioWorkletNode(this.ctx, 'pcm16k')
     const mute = this.ctx.createGain()
     mute.gain.value = 0
@@ -223,6 +245,7 @@ export class VoiceClient {
     this.rec = null
     this.node?.disconnect()
     this.src?.disconnect()
+    this.inAn = null
     this.stream?.getTracks().forEach((t) => t.stop())
     this.node = this.src = this.stream = null
   }
@@ -242,7 +265,7 @@ export class VoiceClient {
   startRecognition() {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition
     if (!SR) {
-      this.onEvent({ type: 'nomic' })
+      this.onEvent({ type: 'nomic', reason: 'missing' })
       return false
     }
     const r = new SR()
@@ -255,7 +278,10 @@ export class VoiceClient {
         this.sendText(res[0].transcript) // the server echoes it back as a transcript
       }
     }
-    r.onerror = (e) => e.error === 'not-allowed' && this.onEvent({ type: 'nomic' })
+    r.onerror = (e) => {
+      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') this.onEvent({ type: 'nomic', reason: 'denied' })
+      if (e.error === 'audio-capture') this.onEvent({ type: 'nomic', reason: 'missing' })
+    }
     r.onend = () => { if (this.rec === r) try { r.start() } catch { /* restarting too fast */ } }
     r.start()
     this.rec = r

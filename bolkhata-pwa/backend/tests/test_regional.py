@@ -160,3 +160,13 @@ def test_llm_latin_name_matches_tamil_spoken_name(store):
                                          ("రమేష్ బాకీ ఎంత", None)])  # 'how much' is not 8
 def test_number_words_ignore_final_vowel(text, amount):
     assert parse(text).amount == amount
+
+
+def test_noisy_shop_makes_gnani_vad_stricter(store):
+    from app.gnani import stt_headers
+    assert "x-vad-threshold" not in stt_headers("k", "auto")
+    h = stt_headers("k", "auto", noisy=True)
+    assert h["x-vad-threshold"] == "0.85" and h["x-min-speech-ms"] == "250" and h["x-min-silence-ms"] == "400"
+    assert store.save_settings({"noisy_shop": "on"})["noisy_shop"] == "on"
+    with pytest.raises(ValueError):
+        store.save_settings({"noisy_shop": "loud"})

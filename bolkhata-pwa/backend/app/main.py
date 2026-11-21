@@ -198,7 +198,8 @@ class VoiceSession:
         self.ws, self.store, self.key = ws, store, api_key
         self.brain, self.brain_on = brain, brain is not None
         s = store.settings()
-        self.conv = Conversation(store, "auto", "hi" if s["default_language"] == "auto" else s["default_language"])
+        # English is the starting language; Auto still switches to whatever language the shopkeeper speaks
+        self.conv = Conversation(store, "auto", "en" if s["default_language"] == "auto" else s["default_language"])
         self.engine, self.barge_in = "live", False
         self.lock = asyncio.Lock()
         self.turn_lock = asyncio.Lock()  # one turn at a time: a reply can never mix two requests
@@ -314,7 +315,8 @@ class VoiceSession:
         try:
             if not self.key:
                 raise GnaniError("GNANI_API_KEY not set")
-            self.stt = await gnani.stt_connect(self.key, self.conv.mode, self.store.settings()["regional_language"])
+            s = self.store.settings()
+            self.stt = await gnani.stt_connect(self.key, self.conv.mode, s["regional_language"], s["noisy_shop"] == "on")
         except Exception as e:  # noqa: BLE001 - any failure means fall back to the next engine
             await self.send({"type": "engine_failed", "engine": "live", "reason": str(e)[:200]})
             return

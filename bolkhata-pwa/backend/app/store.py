@@ -172,7 +172,7 @@ class Store:
 
     # ---- settings
     DEFAULT_SETTINGS = {"shop_name": "Meri Dukaan", "upi_vpa": "", "default_language": "auto", "closing_time": "20:00",
-                        "regional_language": ""}
+                        "regional_language": "", "noisy_shop": "off"}
 
     def settings(self):
         s = self.settings_c.find_one({"_id": "shop"}, {"_id": 0}) or {}
@@ -184,6 +184,8 @@ class Store:
             raise ValueError("closing_time must be HH:MM")
         if clean.get("regional_language", "") not in ("", "kn", "te", "ta"):
             raise ValueError("regional_language must be kn, te, ta or empty")
+        if clean.get("noisy_shop", "off") not in ("on", "off"):
+            raise ValueError("noisy_shop must be on or off")
         self.settings_c.update_one({"_id": "shop"}, {"$set": clean}, upsert=True)
         return self.settings()
 

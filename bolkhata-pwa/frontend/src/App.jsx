@@ -2,68 +2,88 @@ import { useEffect, useRef, useState } from 'react'
 import { ENGINES, VoiceClient } from './voice.js'
 import { Customers, Ledger, Orders, Settings } from './screens.jsx'
 import { ErrorBoundary } from './ErrorBoundary.jsx'
+import { Icon } from './Icon.jsx'
+import { VoiceConsole } from './VoiceConsole.jsx'
+import { ActionSheet, Greeting, QuickActions, RecentEntries, Summary, TopDues, Week, useDashboard } from './Dashboard.jsx'
 
-export const LANG_NAMES = { auto: 'Auto', hi: 'हिन्दी', en: 'English', kn: 'ಕನ್ನಡ', te: 'తెలుగు', ta: 'தமிழ்' }
-const ENGINE_NAMES = { live: 'Gnani Live', rest: 'Gnani REST', browser: 'Browser' }
-const ENGINE_SHORT = { live: 'Live', rest: 'REST', browser: 'Web' } // fits a phone-width app bar
+export const LANG_NAMES = { auto: 'Auto', en: 'English', hi: 'हिन्दी', kn: 'ಕನ್ನಡ', te: 'తెలుగు', ta: 'தமிழ்' }
+const ENGINE_NAMES = { live: 'Gnani Live', rest: 'Gnani REST', browser: 'Browser speech' }
+const TABS = [['home', 'home'], ['customers', 'users'], ['orders', 'box'], ['ledger', 'book'], ['settings', 'cog']]
 export const api = (path, opts) =>
-  fetch(path, opts).then((r) => (r.ok ? r.json() : r.json().then((e) => Promise.reject(new Error(e.detail || r.status)))))
+  fetch(path, opts).then((r) => (r.ok ? r.json() : r.json().catch(() => ({})).then((e) => Promise.reject(new Error(e.detail || r.status)))))
+
+const store = { // per-device conveniences only; the app works without storage
+  get: (k) => { try { return localStorage.getItem(k) } catch { return null } },
+  set: (k, v) => { try { localStorage.setItem(k, v) } catch { /* blocked */ } },
+}
 
 export default function App() {
   const [meta, setMeta] = useState(null)
+  const [settings, setSettings] = useState(null)
   const [tab, setTab] = useState('home')
-  const [lang, setLang] = useState('auto')
-  const [uiLang, setUiLang] = useState('hi')
+  const [lang, setLang] = useState(store.get('bk_lang') || 'auto')
+  const [uiLang, setUiLang] = useState(() => { const l = store.get('bk_lang'); return l && l !== 'auto' ? l : 'en' })
   const [engine, setEngine] = useState('live')
   const [bargeIn, setBargeIn] = useState(false)
   const [brainOn, setBrainOn] = useState(true)
   const [started, setStarted] = useState(false)
   const [openCustomer, setOpenCustomer] = useState(null)
-  const [evening, setEvening] = useState(null)
+  const [reminders, setReminders] = useState(null)
+  const [showReminders, setShowReminders] = useState(false)
+  const [sheet, setSheet] = useState(null)
+  const [version, setVersion] = useState(0)
+  const [micSettings, setMicSettings] = useState(null)
   const voice = useRef(null)
+  const consoleRef = useRef(null)
   const [conv, setConv] = useState({ transcript: '', reply: null, latency: {}, notice: '', listening: false, speaking: false })
+  const dash = useDashboard(version)
 
   useEffect(() => {
     Promise.all([api('/api/meta'), api('/api/settings')]).then(([m, s]) => {
       setMeta(m)
-      setLang(s.default_language || 'auto')
-      if (s.default_language && s.default_language !== 'auto') setUiLang(s.default_language)
-    })
+      setSettings(s)
+      if (!store.get('bk_lang') && s.default_language && s.default_language !== 'auto') {
+        setLang(s.default_language)
+        setUiLang(s.default_language)
+      }
+    }).catch(() => setMeta({ ui: null, failed: true }))
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {})
   }, [])
+  const uiLangRef = useRef(uiLang)
+  uiLangRef.current = uiLang
 
-  // Evening reminder: once a day after closing time, list customers without phone numbers and pending orders.
+  // Reminders (customers without phone numbers, pending orders) — always behind the bell; once a day after closing
+  // time the panel also opens by itself and the summary is spoken.
   useEffect(() => {
-    if (!meta) return
+    if (!meta?.ui) return
     const check = async () => {
-      const today = new Date().toISOString().slice(0, 10)
-      let seen = null
-      try { seen = localStorage.getItem('bk_evening') } catch { /* storage blocked */ }
-      if (seen === today) return
-      const { closing_time: close } = await api('/api/settings')
-      const now = new Date()
-      if (`${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}` < close) return
-      const e = await api(`/api/evening?lang=${uiLangRef.current}`)
-      if (!e.missing.length && !e.orders.length) return
-      setEvening(e)
-      voice.current?.sendJson({ type: 'evening' })
-      try { localStorage.setItem('bk_evening', today) } catch { /* storage blocked */ }
+      try {
+        const e = await api(`/api/evening?lang=${uiLangRef.current}`)
+        setReminders(e)
+        const today = new Date().toISOString().slice(0, 10)
+        const s = await api('/api/settings')
+        const now = new Date()
+        const hhmm = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+        if (store.get('bk_evening') !== today && hhmm >= s.closing_time && (e.missing.length || e.orders.length)) {
+          setShowReminders(true)
+          voice.current?.sendJson({ type: 'evening' })
+          store.set('bk_evening', today)
+        }
+      } catch { /* offline: try again next minute */ }
     }
     check()
     const id = setInterval(check, 60000)
     return () => clearInterval(id)
-  }, [meta, started])
-  const uiLangRef = useRef(uiLang)
-  uiLangRef.current = uiLang
+  }, [meta, started, version])
 
-  const t = (k) => meta?.ui[uiLang]?.[k] ?? meta?.ui.en[k] ?? k
+  const t = (k) => meta?.ui?.[uiLang]?.[k] ?? meta?.ui?.en?.[k] ?? k
   const patch = (p) => setConv((c) => ({ ...c, ...p }))
 
   function onEvent(m) {
     switch (m.type) {
       case 'transcript':
         // new request: clear the previous reply so it can't be mistaken for this one
-        setConv((c) => ({ ...c, transcript: m.text, reply: null, thinking: true, latency: { stt: m.stt_ms } }))
+        setConv((c) => ({ ...c, transcript: m.text, reply: null, thinking: true, failed: false, latency: { stt: m.stt_ms } }))
         break
       case 'ignored':
         patch({ thinking: false })
@@ -81,6 +101,7 @@ export default function App() {
         setUiLang(m.lang)
         if (!m.evening) patch({ reply: m, notice: '', thinking: false, failed: false })
         if (m.source) setConv((c) => ({ ...c, latency: { ...c.latency, source: m.source, brain: m.brain_ms } }))
+        if (m.saved || m.key === 'undone') setVersion((v) => v + 1) // the dashboard follows the ledger live
         break
       case 'latency':
         setConv((c) => ({ ...c, latency: { ...c.latency, reply: m.reply } }))
@@ -98,32 +119,52 @@ export default function App() {
         patch({ notice: m.key ? t(m.key) : `Gnani: ${m.detail}` })
         break
       case 'nomic':
-        patch({ notice: t('noMic'), listening: false })
+        patch({ notice: m.reason === 'missing' ? t('micMissing') : t('micDenied'), listening: false })
+        break
+      case 'micSettings':
+        setMicSettings(m.settings)
+        break
+      case 'playbackFailed':
+        patch({ notice: t('playbackFailed'), speaking: false })
         break
     }
   }
+  const onEventRef = useRef(onEvent)
+  onEventRef.current = onEvent
 
-  function start() {
+  function ensureStarted() {
+    if (voice.current) return voice.current
     voice.current = new VoiceClient((m) => onEventRef.current(m), { engine, lang, bargeIn })
     voice.current.connect()
     setStarted(true)
+    return voice.current
   }
+
   useEffect(() => {
     if (!conv.thinking) return
     const id = setTimeout(() => patch({ thinking: false, failed: true }), 15000) // no reply in 15 s: let the user retry
     return () => clearTimeout(id)
   }, [conv.thinking, conv.transcript])
-  const onEventRef = useRef(onEvent)
-  onEventRef.current = onEvent
+
+  function submit(said) {
+    const v = ensureStarted()
+    patch({ transcript: said, reply: null, thinking: true, failed: false, lastSaid: said })
+    v.sendText(said)
+  }
 
   async function toggleMic() {
-    const v = voice.current
+    const v = ensureStarted()
     if (conv.listening) {
       patch({ listening: false })
       await v.micStop()
     } else if (await v.micStart()) {
-      patch({ listening: true })
+      patch({ listening: true, notice: '' })
     }
+  }
+
+  function micFromAnywhere() {
+    setTab('home')
+    if (!conv.listening) toggleMic()
   }
 
   async function cycleEngine() {
@@ -138,179 +179,136 @@ export default function App() {
 
   function changeLang(l) {
     setLang(l)
-    if (l !== 'auto') setUiLang(l)
+    store.set('bk_lang', l)
+    setUiLang(l === 'auto' ? (conv.reply?.lang || 'en') : l)
     voice.current?.setConfig({ lang: l })
   }
 
-  function toggleBrain() {
-    setBrainOn(!brainOn)
-    voice.current?.setConfig({ brain: !brainOn })
+  function openCustomerPage(id) {
+    setOpenCustomer(id)
+    setTab('customers')
   }
 
-  function toggleBarge() {
-    setBargeIn(!bargeIn)
-    voice.current?.setConfig({ bargeIn: !bargeIn })
+  if (!meta) return <div className="splash">BolKhata</div>
+  if (meta.failed) {
+    return (
+      <div className="splash"><p>Can't reach the BolKhata server. Check that it is running, then try again.</p>
+        <button className="btn solid" onClick={() => location.reload()}>Try again</button></div>
+    )
   }
 
-  if (!meta) return <div className="splash">BolKhata…</div>
+  const pendingOrders = dash.data?.orders.filter((o) => o.status === 'pending').length || 0
+  const bellCount = reminders ? reminders.missing.length + reminders.orders.length : 0
+  const langSelect = (
+    <select className="lang-select" aria-label={t('language')} value={lang} onChange={(e) => changeLang(e.target.value)}>
+      {Object.entries(LANG_NAMES).map(([k, v]) => <option key={k} value={k}>{k === 'auto' ? `${t('auto')}` : v}</option>)}
+    </select>
+  )
+  const consoleEl = (
+    <div ref={consoleRef}>
+      <VoiceConsole t={t} conv={conv} voice={voice.current} started={started} onStart={() => ensureStarted()} onMic={toggleMic}
+        onSubmit={submit} lang={lang} uiLang={uiLang} engine={engine} onEngine={cycleEngine}
+        bargeIn={bargeIn} onBarge={() => { setBargeIn(!bargeIn); voice.current?.setConfig({ bargeIn: !bargeIn }) }}
+        brainOn={brainOn} onBrain={() => { setBrainOn(!brainOn); voice.current?.setConfig({ brain: !brainOn }) }}
+        llm={meta.llm && meta.llm.length > 0} />
+    </div>
+  )
 
   return (
-    <div className="app">
-      <header className="bar">
-        <h1>BolKhata</h1>
-        <select aria-label={t('language')} value={lang} onChange={(e) => changeLang(e.target.value)}>
-          {Object.entries(LANG_NAMES).map(([k, v]) => <option key={k} value={k}>{k === 'auto' ? t('auto') : v}</option>)}
-        </select>
-        <button className="chip" onClick={cycleEngine} title={`Voice engine: ${ENGINE_NAMES[engine]}`}>{ENGINE_SHORT[engine]}</button>
-        <button className={`chip ${bargeIn ? 'on' : ''}`} aria-pressed={bargeIn} onClick={toggleBarge} title={t('bargeIn')}>🗣</button>
-        {meta.llm && meta.llm.length > 0 && (
-          <button className={`chip ${brainOn ? 'on' : ''}`} aria-pressed={brainOn} onClick={toggleBrain} title={t('brain')}>🧠</button>
-        )}
-      </header>
+    <div className="shell">
+      <aside className="sidebar">
+        <div className="brand"><span className="brand-mark" aria-hidden="true">ब</span><div><b>BolKhata</b><small>{settings?.shop_name}</small></div></div>
+        <nav className="side-nav" aria-label="Main">
+          {TABS.map(([k, icon]) => (
+            <button key={k} className={tab === k ? 'is-active' : ''} aria-current={tab === k ? 'page' : undefined} onClick={() => setTab(k)}>
+              <Icon name={icon} />{t(k)}{k === 'orders' && pendingOrders > 0 && <span className="count">{pendingOrders}</span>}
+            </button>
+          ))}
+        </nav>
+        <div className="side-foot">{langSelect}</div>
+      </aside>
 
-      <main>
-       <ErrorBoundary key={tab} message={t('failed')} retry={t('retry')}>
-        {evening && tab === 'home' && (
-          <div className="evening" role="status">
-            <b>🌙 {t('eveningTitle')}</b>
-            <p>{evening.text}</p>
-            <div className="chips">
-              {evening.missing.map((c) => (
-                <button key={c.id} className="chip big" onClick={() => { setOpenCustomer(c.id); setTab('customers') }}>
-                  📞 {c.name}{c.note && ` · ${c.note}`}
-                </button>
-              ))}
-              {evening.orders.length > 0 && <button className="chip big" onClick={() => setTab('orders')}>📦 {t('orders')}</button>}
-            </div>
-            <button className="btn" onClick={() => setEvening(null)}>{t('dismiss')}</button>
-          </div>
-        )}
-        {tab === 'home' && (started
-          ? <Home t={t} conv={conv} voice={voice.current} toggleMic={toggleMic} lang={lang} uiLang={uiLang}
-              onSubmit={(said) => patch({ transcript: said, reply: null, thinking: true, failed: false, lastSaid: said })} />
-          : <div className="start"><p>{meta.ui[uiLang].tapToSpeak}</p><button className="mic" onClick={start} aria-label="Start">🎤</button></div>)}
-        {tab === 'customers' && <Customers t={t} uiLang={uiLang} open={openCustomer} setOpen={setOpenCustomer} />}
-        {tab === 'orders' && <Orders t={t} uiLang={uiLang} />}
-        {tab === 'ledger' && <Ledger t={t} />}
-        {tab === 'settings' && <Settings t={t} meta={meta} />}
-       </ErrorBoundary>
-      </main>
+      <div className="main-col">
+        <header className="topbar">
+          <div className="brand compact"><span className="brand-mark" aria-hidden="true">ब</span><div><b>BolKhata</b><small>{settings?.shop_name}</small></div></div>
+          <span className={`conn ${conv.offline ? 'is-off' : ''}`} title={conv.offline ? t('offline') : t('online')}>
+            <i />{conv.offline ? '' : t('online')}
+          </span>
+          <button className="icon-btn" onClick={() => setShowReminders(!showReminders)} aria-label={`${t('notifications')} (${bellCount})`}
+            aria-expanded={showReminders}>
+            <Icon name="bell" />{bellCount > 0 && <span className="badge">{bellCount}</span>}
+          </button>
+          <div className="topbar-lang">{langSelect}</div>
+        </header>
 
-      <nav className="tabs">
-        {[['home', '🎤'], ['customers', '👥'], ['orders', '📦'], ['ledger', '📊'], ['settings', '⚙️']].map(([k, icon]) => (
-          <button key={k} className={tab === k ? 'active' : ''} onClick={() => setTab(k)}>
-            <span>{icon}</span>{t(k)}
+        <main className={`page-${tab}`}>
+          {showReminders && reminders && (
+            <section className="reminders" role="status">
+              <header className="panel-head"><h2>{t('notifications')}</h2>
+                <button className="link" onClick={() => setShowReminders(false)}>{t('dismiss')}</button></header>
+              {bellCount === 0 ? <p className="empty">{t('allClear')}</p> : (
+                <>
+                  <p>{reminders.text}</p>
+                  <div className="choices">
+                    {reminders.missing.map((c) => (
+                      <button key={c.id} className="choice" onClick={() => openCustomerPage(c.id)}>
+                        <Icon name="phone" size={16} /> {c.name}{c.note && `, ${c.note}`}
+                      </button>
+                    ))}
+                    {reminders.orders.length > 0 && <button className="choice" onClick={() => setTab('orders')}><Icon name="box" size={16} /> {t('orders')}</button>}
+                  </div>
+                </>
+              )}
+            </section>
+          )}
+
+          <ErrorBoundary key={tab} message={t('failed')} retry={t('retry')}>
+            {tab === 'home' && (
+              <div className="home">
+                <Greeting t={t} shop={settings?.shop_name} />
+                {dash.err && <p className="notice" role="alert">{t('failed')} <button className="link" onClick={dash.reload}>{t('retry')}</button></p>}
+                {dash.data && <Summary t={t} data={dash.data} />}
+                <div className="home-grid">
+                  <div className="home-voice">{consoleEl}
+                    <QuickActions t={t} onAction={setSheet} onLedger={() => setTab('ledger')} />
+                  </div>
+                  {dash.data && (
+                    <div className="home-info">
+                      <RecentEntries t={t} data={dash.data} onSeeAll={() => setTab('ledger')} />
+                      <TopDues t={t} data={dash.data} onOpen={openCustomerPage} />
+                      <Week t={t} data={dash.data} pendingOrders={pendingOrders} onOrders={() => setTab('orders')} />
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            {tab === 'customers' && <Customers t={t} uiLang={uiLang} open={openCustomer} setOpen={setOpenCustomer} />}
+            {tab === 'orders' && <Orders t={t} uiLang={uiLang} />}
+            {tab === 'ledger' && <Ledger t={t} />}
+            {tab === 'settings' && <Settings t={t} meta={meta} micSettings={micSettings} onSaved={(s) => { setSettings(s); setVersion((v) => v + 1) }} />}
+          </ErrorBoundary>
+        </main>
+      </div>
+
+      {tab !== 'home' && (
+        <button className={`fab-mic ${conv.listening ? 'is-live' : ''}`} onClick={micFromAnywhere} aria-label={t('tapToSpeak')}>
+          <Icon name="mic" size={24} />
+        </button>
+      )}
+
+      <nav className="bottom-nav" aria-label="Main">
+        {TABS.map(([k, icon]) => (
+          <button key={k} className={tab === k ? 'is-active' : ''} aria-current={tab === k ? 'page' : undefined} onClick={() => setTab(k)}>
+            <Icon name={icon} size={22} /><span>{t(k)}</span>
+            {k === 'orders' && pendingOrders > 0 && <span className="badge">{pendingOrders}</span>}
           </button>
         ))}
       </nav>
-    </div>
-  )
-}
 
-function Home({ t, conv, voice, toggleMic, lang, uiLang, onSubmit }) {
-  const [text, setText] = useState('')
-  const [editing, setEditing] = useState(false)
-  const [amount, setAmount] = useState('')
-  const r = conv.reply
-  const card = r?.state === 'confirming' ? r.card : null
-  const [undoLeft, setUndoLeft] = useState(0)
-  useEffect(() => {
-    if (!r?.saved || !r.undo) { setUndoLeft(0); return }
-    const until = Date.now() + r.undo * 1000
-    const tick = () => setUndoLeft(Math.max(0, Math.ceil((until - Date.now()) / 1000)))
-    tick()
-    const id = setInterval(tick, 250)
-    return () => clearInterval(id)
-  }, [r])
-  const money = card && !['order', 'arrival', 'phone'].includes(card.type)
-
-  async function notify(cid) {
-    const { url } = await api(`/api/customers/${cid}/arrived-message?lang=${uiLang}`)
-    window.open(url, '_blank', 'noopener') // WhatsApp opens with the text ready; the shopkeeper presses send
-  }
-
-  const lastSent = useRef({ text: '', at: 0 })
-  function send(e) {
-    e.preventDefault()
-    const t2 = text.trim()
-    if (!t2) return
-    if (t2 === lastSent.current.text && Date.now() - lastSent.current.at < 1500) return // accidental double send
-    lastSent.current = { text: t2, at: Date.now() }
-    onSubmit(t2) // clear the old reply now; the newest request always wins
-    voice.sendText(t2)
-    setText('')
-  }
-
-  function saveAmount(e) {
-    e.preventDefault()
-    const n = parseInt(amount, 10)
-    if (n > 0) voice.tap('amount', { amount: n })
-    setEditing(false)
-  }
-
-  return (
-    <div className="home">
-      <div className="status">
-        <span className="chip small">{t('detected')}: {LANG_NAMES[r?.lang || (lang === 'auto' ? 'hi' : lang)]}</span>
-        <span className="latency">
-          STT {conv.latency.stt ?? '—'} ms · reply {conv.latency.reply ?? '—'} ms
-          {conv.latency.source && ` · ${conv.latency.source === 'rules' ? 'rules' : `${conv.latency.source} ${conv.latency.brain} ms`}`}
-        </span>
-      </div>
-
-      <button className={`mic ${conv.listening ? 'live' : ''} ${conv.speaking ? 'speaking' : ''}`} onClick={toggleMic}
-        aria-label={conv.listening ? t('listening') : t('tapToSpeak')}>🎤</button>
-      <p className="hint">{conv.listening ? t('listening') : t('tapToSpeak')}</p>
-
-      {conv.notice && <p className="notice" role="status">{conv.notice}</p>}
-      {conv.transcript && <p className="transcript">“{conv.transcript}”</p>}
-      {conv.offline && <p className="notice" role="status">{t('offline')}</p>}
-      {conv.failed && !conv.thinking && (
-        <div className="reply failed" role="alert">
-          {t('failed')}
-          {conv.lastSaid && (
-            <button className="btn" onClick={() => { onSubmit(conv.lastSaid); voice.sendText(conv.lastSaid) }}>↻ {t('retry')}</button>
-          )}
-        </div>
+      {sheet && dash.data && (
+        <ActionSheet t={t} kind={sheet} uiLang={uiLang} customers={dash.data.customers} onClose={() => setSheet(null)}
+          onSend={(cmd) => { setSheet(null); setTab('home'); submit(cmd); consoleRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }) }} />
       )}
-      {conv.thinking && !r && <div className="reply thinking" aria-live="polite">{t('thinking')}</div>}
-      {r && <div className={`reply ${r.saved ? 'ok' : ''}`} aria-live="polite">{r.text}</div>}
-      {r?.notify && <button className="btn primary wide" onClick={() => notify(r.notify)}>💬 {t('notifyCustomer')}</button>}
-      {undoLeft > 0 && (
-        <button className="btn wide" onClick={() => { setUndoLeft(0); voice.tap('undo') }}>↩ {t('undo')} ({undoLeft})</button>
-      )}
-
-      {r?.state === 'chooseCustomer' && (
-        <div className="chips">
-          {r.options.map((o, i) => <button key={i} className="chip big" onClick={() => voice.tap('choose', { index: i })}>{o}</button>)}
-        </div>
-      )}
-
-      {card && (
-        <div className={`confirm ${card.type}`}>
-          <div className="who">{card.name}{card.note && <small> · {card.note}</small>}{card.isNew && <span className="tag">{t('newCustomer')}</span>}</div>
-          <div className="type">{t(card.type)}</div>
-          {money ? <div className="amount">₹{card.amount}</div> : <div className="items">{card.type === 'phone' ? `📞 ${card.phone}` : card.items}</div>}
-          {editing ? (
-            <form onSubmit={saveAmount} className="row">
-              <input type="number" inputMode="numeric" min="1" step="1" autoFocus value={amount}
-                onChange={(e) => setAmount(e.target.value)} aria-label={t('amount')} />
-              <button className="btn primary">OK</button>
-            </form>
-          ) : (
-            <div className="row">
-              <button className="btn primary" onClick={() => voice.tap('save')}>{t('save')}</button>
-              <button className="btn" onClick={() => voice.tap('cancel')}>{t('cancel')}</button>
-              {money && <button className="btn" onClick={() => { setAmount(String(card.amount)); setEditing(true) }}>{t('editAmount')}</button>}
-            </div>
-          )}
-        </div>
-      )}
-
-      <form className="typebox" onSubmit={send}>
-        <input value={text} onChange={(e) => setText(e.target.value)} placeholder={t('typeHere')} aria-label={t('typeHere')} />
-        <button className="btn primary">{t('send')}</button>
-      </form>
     </div>
   )
 }

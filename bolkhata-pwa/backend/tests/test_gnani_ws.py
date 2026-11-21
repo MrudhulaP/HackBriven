@@ -68,7 +68,7 @@ class FakeSTT:
 def client(db, monkeypatch):
     fake = FakeSTT(["Ramesh ka total kitna"])
 
-    async def stt_connect(key, mode, regional=""):
+    async def stt_connect(key, mode, regional="", noisy=False):
         return fake
 
     async def tts_stream(key, text, lang):
@@ -144,7 +144,7 @@ def test_rest_endpoints_and_csv(client):
 def test_barge_in_stops_reply(db, monkeypatch):
     fake = FakeSTT(["Lakshmi ka baaki"])
 
-    async def stt_connect(key, mode, regional=""):
+    async def stt_connect(key, mode, regional="", noisy=False):
         return fake
 
     async def slow_tts(key, text, lang):

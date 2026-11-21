@@ -88,7 +88,7 @@ function History({ t, id, uiLang, back }) {
         <button className="btn wide">{t('save')}</button>
         {ok && <p className="notice ok">{t('saved')}</p>}
       </form>
-      {c.balance > 0 && c.phone && <button className="btn primary wide" onClick={remind}>💬 {t('remind')}</button>}
+      {c.balance > 0 && c.phone && <button className="btn solid wide" onClick={remind}>💬 {t('remind')}</button>}
       {err && <p className="notice">{err}</p>}
       <ul className="history">
         {c.history.map((e) => (
@@ -137,12 +137,12 @@ export function Orders({ t, uiLang }) {
       {err && <p className="notice">{err}</p>}
       <h2>{t('pendingOrders')} ({pending.length})</h2>
       <ul className="history">
-        {pending.map((o) => row(o, <button className="btn primary" onClick={() => setStatus(o, 'arrived')}>📦 {t('markArrived')}</button>))}
+        {pending.map((o) => row(o, <button className="btn solid" onClick={() => setStatus(o, 'arrived')}>📦 {t('markArrived')}</button>))}
       </ul>
       <h2>{t('arrivedOrders')} ({arrived.length})</h2>
       <ul className="history">
         {arrived.map((o) => row(o, <>
-          {o.phone && <button className="btn primary" onClick={() => notify(o)}>💬 {t('notifyCustomer')}</button>}
+          {o.phone && <button className="btn solid" onClick={() => notify(o)}>💬 {t('notifyCustomer')}</button>}
           <button className="btn" onClick={() => setStatus(o, 'closed')}>✓ {t('markDelivered')}</button>
         </>))}
       </ul>
@@ -177,7 +177,7 @@ export function Ledger({ t }) {
           <option value="">{t('all')}</option>
           {Object.entries(LANG_NAMES).filter(([k]) => k !== 'auto').map(([k, v]) => <option key={k} value={k}>{v}</option>)}
         </select>
-        <a className="btn primary" href="/api/ledger.csv" download>⬇ {t('export')}</a>
+        <a className="btn solid" href="/api/ledger.csv" download>⬇ {t('export')}</a>
       </div>
       <div className="tablewrap">
         <table>
@@ -199,7 +199,7 @@ export function Ledger({ t }) {
   )
 }
 
-export function Settings({ t, meta }) {
+export function Settings({ t, meta, micSettings, onSaved }) {
   const [s, setS] = useState(null)
   const [done, setDone] = useState(false)
   const [err, setErr] = useState('')
@@ -210,7 +210,9 @@ export function Settings({ t, meta }) {
   async function save(e) {
     e.preventDefault()
     try {
-      setS(await api('/api/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(s) }))
+      const saved = await api('/api/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(s) })
+      setS(saved)
+      onSaved?.(saved)
       setDone(true)
       setErr('')
     } catch (e2) { setErr(e2.message) }
@@ -232,9 +234,22 @@ export function Settings({ t, meta }) {
           {['kn', 'te', 'ta'].map((k) => <option key={k} value={k}>{LANG_NAMES[k]}</option>)}
         </select>
       </label>
-      <button className="btn primary wide">{t('save')}</button>
+      <label className="switch-row">
+        <input type="checkbox" checked={s.noisy_shop === 'on'}
+          onChange={(e) => { setS({ ...s, noisy_shop: e.target.checked ? 'on' : 'off' }); setDone(false) }} />
+        <span><b>{t('noisyShop')}</b><small>{t('noisyShopHelp')}</small></span>
+      </label>
+      <button className="btn solid wide">{t('save')}</button>
       {done && <p className="notice ok">{t('saved')}</p>}
       {err && err !== 'load' && <p className="notice">{err}</p>}
+      {micSettings && (
+        <div className="mic-check">
+          <b>{t('micCheck')}</b>
+          {['noiseSuppression', 'echoCancellation', 'autoGainControl', 'voiceIsolation'].map((k) => (
+            <span key={k}>{k.replace(/([A-Z])/g, ' $1').toLowerCase()}: {micSettings[k] === true ? t('micOn') : micSettings[k] === false ? t('micOff') : '—'}</span>
+          ))}
+        </div>
+      )}
       <p className="muted">{meta.seed_demo ? t('demoOn') : t('demoOff')}</p>
     </form>
   )

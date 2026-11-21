@@ -83,10 +83,17 @@ def pcm_to_wav(pcm: bytes, rate: int = 16000) -> bytes:
     return out.getvalue()
 
 
-async def stt_connect(key: str, mode: str, regional: str = ""):
-    return await websockets.connect(STT_WS, open_timeout=6, max_size=None, additional_headers={
-        "x-api-key-id": key, "language_code": stt_language(mode, regional), "model": "prisma-v3.0",
-        "x-sample-rate": "16000", "x-min-silence-ms": "400"})
+def stt_headers(key: str, mode: str, regional: str = "", noisy: bool = False) -> dict:
+    h = {"x-api-key-id": key, "language_code": stt_language(mode, regional), "model": "prisma-v3.0",
+         "x-sample-rate": "16000", "x-min-silence-ms": "400"}
+    if noisy:  # Gnani's own VAD, stricter: background talk and short noises are less likely to count as speech
+        h.update({"x-vad-threshold": "0.85", "x-min-speech-ms": "250"})
+    return h
+
+
+async def stt_connect(key: str, mode: str, regional: str = "", noisy: bool = False):
+    return await websockets.connect(STT_WS, open_timeout=6, max_size=None,
+                                    additional_headers=stt_headers(key, mode, regional, noisy))
 
 
 async def stt_rest(key: str, wav: bytes, mode: str, regional: str = "") -> dict:

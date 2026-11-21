@@ -109,6 +109,24 @@ Seed data (synthetic): Ramesh (Gandhi Nagar) ₹450, Ramesh (Station Road) ₹20
 - **Evening check.** Once a day after the shop closing time (Settings, default 20:00), Home shows a banner and speaks a list of customers with no phone number and all pending orders. Tapping a name opens that customer's page to add the phone. It appears only while the app is open; there are no push notifications.
 - **Noise.** The browser's noise suppression, echo cancellation and auto-gain are on, and the app sends silence while it speaks. Not yet tested in a real noisy shop.
 
+## Screens (mobile first)
+
+- **Home** is the shop at a glance, all computed from the ledger (no separate dashboard API):
+  - outstanding, today's credit and collections, and customers;
+  - the voice console;
+  - quick actions;
+  - recent entries as a khata page with udhaar and jama columns;
+  - highest dues;
+  - this week's collected vs given;
+  - pending orders.
+
+  It refreshes itself after every save or undo.
+- **Quick actions** (Add credit, Record payment, Add customer) send a normal command, so they go through the same confirm-before-save step as voice.
+- **Voice console:** tappable example commands; a mic with a haldi-yellow ring that follows the real audio (the shopkeeper's voice while listening, the reply while speaking) via an `AnalyserNode` on the one existing mic stream; clear states (start, listening, processing, reply, error) with recovery messages.
+- **Navigation:** a bottom bar on phones (Home, Customers, Orders, Ledger, Settings) with a floating mic on other tabs, and a sidebar from 960 px.
+- **English by default** for the UI, the greeting and replies. Auto still switches to the language spoken, and a chosen language is remembered on the device.
+- **Noisy shop mode** (Settings) makes Gnani's own voice detection stricter (`x-vad-threshold` 0.85, `x-min-speech-ms` 250). Settings also shows which noise features the browser actually applied (noise suppression, echo cancellation, auto gain, voice isolation).
+
 ## Each command stands on its own
 
 - **New command, fresh context.** Any new command (a phone number, a question, a full credit/payment, an order) drops the unfinished one, so the app never answers it with the previous question. Only a real follow-up uses earlier context: "He paid 200" right after Lakshmi means Lakshmi.
