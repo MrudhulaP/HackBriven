@@ -10,17 +10,18 @@ import '../core/models.dart';
 
 class PrefsLedgerStore extends LedgerStore {
   static const _key = 'bolkhata_ledger_v1';
-  final SharedPreferences _prefs;
+  final SharedPreferences prefs;
 
-  PrefsLedgerStore._(this._prefs);
+  PrefsLedgerStore(this.prefs);
 
-  static Future<PrefsLedgerStore> open() async {
-    final prefs = await SharedPreferences.getInstance();
-    final store = PrefsLedgerStore._(prefs);
+  static Future<PrefsLedgerStore> open() async =>
+      PrefsLedgerStore(await SharedPreferences.getInstance())..loadCache();
+
+  void loadCache() {
     final raw = prefs.getString(_key);
     if (raw != null) {
       final j = jsonDecode(raw) as Map<String, dynamic>;
-      store.loadAll(
+      loadAll(
         (j['customers'] as List)
             .map((e) => Customer.fromJson(e as Map<String, dynamic>))
             .toList(),
@@ -29,7 +30,6 @@ class PrefsLedgerStore extends LedgerStore {
             .toList(),
       );
     }
-    return store;
   }
 
   @override
@@ -38,6 +38,6 @@ class PrefsLedgerStore extends LedgerStore {
       'customers': customers.map((c) => c.toJson()).toList(),
       'entries': entries.map((e) => e.toJson()).toList(),
     };
-    await _prefs.setString(_key, jsonEncode(data));
+    await prefs.setString(_key, jsonEncode(data));
   }
 }

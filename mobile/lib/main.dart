@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 
 import 'core/ledger_store.dart';
+import 'data/api_ledger_store.dart';
 import 'data/prefs_ledger_store.dart';
 import 'ui/home_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  final store = await PrefsLedgerStore.open();
+  // e.g. --dart-define=BOLKHATA_API_URL=http://10.0.2.2:8000 (Android emulator). Unset = phone-only ledger.
+  const apiUrl = String.fromEnvironment('BOLKHATA_API_URL');
+  final LedgerStore store =
+      apiUrl.isEmpty ? await PrefsLedgerStore.open() : await ApiLedgerStore.open(apiUrl);
   runApp(BolKhataApp(store: store));
 }
 
