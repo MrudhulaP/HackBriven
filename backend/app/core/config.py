@@ -1,5 +1,18 @@
 import os
+from pathlib import Path
 from typing import Optional, List
+
+# backend/data/, found from this file so it is the same whatever folder the server starts in.
+# Docker mounts this whole folder, so SQLite's -wal/-shm side files are kept too.
+_BACKEND_DIR = Path(__file__).resolve().parents[2]
+_DATA_DIR = _BACKEND_DIR / "data"
+_DATA_DIR.mkdir(exist_ok=True)
+# One-time move of a database from the old location (backend/bolkhata.db), side files included.
+if not (_DATA_DIR / "bolkhata.db").exists() and (_BACKEND_DIR / "bolkhata.db").is_file():
+    for _suffix in ("", "-wal", "-shm"):
+        _old = _BACKEND_DIR / f"bolkhata.db{_suffix}"
+        if _old.exists():
+            _old.rename(_DATA_DIR / _old.name)
 
 class Settings:
     PROJECT_NAME: str = "BolKhata"
@@ -14,7 +27,7 @@ class Settings:
     DATABASE_ENCRYPTION_KEY: str = os.getenv("DATABASE_ENCRYPTION_KEY", "bolkhata-sqlcipher-secure-kirana-vault-2026")
     
     # Database
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./bolkhata.db")
+    DATABASE_URL: str = os.getenv("DATABASE_URL", f"sqlite:///{_DATA_DIR / 'bolkhata.db'}")
     USE_SQLCIPHER: bool = os.getenv("USE_SQLCIPHER", "false").lower() in ("true", "1", "yes")
     
     # AI & Speech Configuration

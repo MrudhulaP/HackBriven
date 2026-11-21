@@ -9,12 +9,12 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=sqlite:///./bolkhata.db
       - SECRET_KEY=bolkhata-production-secret-neural-nomads-2026
       - DEFAULT_LANGUAGE=hi
       - DEFAULT_CURRENCY=INR
     volumes:
-      - ./backend/bolkhata.db:/app/bolkhata.db
+      # The whole folder, not just bolkhata.db: SQLite keeps recent writes in bolkhata.db-wal.
+      - ./backend/data:/app/data
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
