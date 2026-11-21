@@ -26,7 +26,11 @@ def stt_language(mode: str, regional: str = "") -> str:
     """A fixed language, or for Auto: Hindi + English + the shop's regional language (Prisma v3.0 takes up to 4),
     which stops Kannada/Tamil being heard as Telugu. No regional language set: Gnani's indic-auto."""
     if mode in CODES:
-        return CODES[mode]
+        # A chosen language leads; English (or Hindi when English is chosen) stays in for mixed speech.
+        codes = [CODES[mode], "hi-IN" if mode == "en" else "en-IN"]
+        if regional in ("kn", "te", "ta") and CODES[regional] not in codes:
+            codes.append(CODES[regional])
+        return ",".join(codes)
     return f"hi-IN,en-IN,{CODES[regional]}" if regional in ("kn", "te", "ta") else "indic-auto"
 
 

@@ -258,3 +258,17 @@ table { width: 100%; border-collapse: collapse; font-size: 15px; }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; scroll-behavior: auto !important; }
 }
+
+/* arrival message outcome */
+.arrival-note { display: grid; gap: 8px; padding: 12px; border-radius: var(--r-md); background: #fffaf0; border: 1px solid #ecd9a5; color: var(--ink); margin: 8px 0; }
+.arrival-note p { margin: 0; }
+.arrival-note.is-sent, .arrival-note.is-already_sent { background: #e2f4e9; border-color: #b9e2c9; }
+.arrival-note.is-failed { background: #fdecea; border-color: #f2b8b0; }
+.arrival-note.on-dark .btn.solid { background: var(--haldi); border-color: var(--haldi); color: var(--forest); }
+.arrival-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+/* advanced voice settings */
+.advanced { margin: 18px 0; padding: 12px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--card); }
+.advanced legend { padding: 0 6px; font: 600 16px var(--display); }
+.advanced .switch-row { border: 0; padding: 8px 0; background: none; }
+.adv-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px 0; }
+.adv-row small { display: block; color: var(--muted); font-weight: 400; }

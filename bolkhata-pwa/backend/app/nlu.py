@@ -7,6 +7,7 @@ from .lang import edit_distance, name_key, script_of
 _DIGITS = {chr(base + i): str(i) for base in (0x0966, 0x0CE6, 0x0C66, 0x0BE6) for i in range(10)}
 _DIGIT_TABLE = str.maketrans(_DIGITS)
 
+_HI_1_99 = {"एक": 1, "दो": 2, "तीन": 3, "चार": 4, "पाँच": 5, "छह": 6, "सात": 7, "आठ": 8, "नौ": 9, "दस": 10, "ग्यारह": 11, "बारह": 12, "तेरह": 13, "चौदह": 14, "पंद्रह": 15, "सोलह": 16, "सत्रह": 17, "अठारह": 18, "उन्नीस": 19, "बीस": 20, "इक्कीस": 21, "बाईस": 22, "तेईस": 23, "चौबीस": 24, "पच्चीस": 25, "छब्बीस": 26, "सत्ताईस": 27, "अट्ठाईस": 28, "उनतीस": 29, "तीस": 30, "इकतीस": 31, "बत्तीस": 32, "तैंतीस": 33, "चौंतीस": 34, "पैंतीस": 35, "छत्तीस": 36, "सैंतीस": 37, "अड़तीस": 38, "उनतालीस": 39, "चालीस": 40, "इकतालीस": 41, "बयालीस": 42, "तैंतालीस": 43, "चवालीस": 44, "पैंतालीस": 45, "छियालीस": 46, "सैंतालीस": 47, "अड़तालीस": 48, "उनचास": 49, "पचास": 50, "इक्यावन": 51, "बावन": 52, "तिरपन": 53, "चौवन": 54, "पचपन": 55, "छप्पन": 56, "सत्तावन": 57, "अट्ठावन": 58, "उनसठ": 59, "साठ": 60, "इकसठ": 61, "बासठ": 62, "तिरसठ": 63, "चौंसठ": 64, "पैंसठ": 65, "छियासठ": 66, "सड़सठ": 67, "अड़सठ": 68, "उनहत्तर": 69, "सत्तर": 70, "इकहत्तर": 71, "बहत्तर": 72, "तिहत्तर": 73, "चौहत्तर": 74, "पचहत्तर": 75, "छिहत्तर": 76, "सतहत्तर": 77, "अठहत्तर": 78, "उन्यासी": 79, "अस्सी": 80, "इक्यासी": 81, "बयासी": 82, "तिरासी": 83, "चौरासी": 84, "पचासी": 85, "छियासी": 86, "सत्तासी": 87, "अट्ठासी": 88, "नवासी": 89, "नब्बे": 90, "इक्यानवे": 91, "बानवे": 92, "तिरानवे": 93, "चौरानवे": 94, "पंचानवे": 95, "छियानवे": 96, "सत्तानवे": 97, "अट्ठानवे": 98, "निन्यानवे": 99}  # every Hindi number word 1–99 (Gnani writes spoken Hindi numbers this way)
 UNITS = {
     # Hindi (romanized)
     "ek": 1, "do": 2, "teen": 3, "tin": 3, "char": 4, "chaar": 4, "paanch": 5, "panch": 5, "chhe": 6, "chhah": 6,
@@ -17,7 +18,7 @@ UNITS = {
     # Hindi (Devanagari)
     "एक": 1, "दो": 2, "तीन": 3, "चार": 4, "पांच": 5, "पाँच": 5, "छह": 6, "छः": 6, "सात": 7, "आठ": 8, "नौ": 9,
     "दस": 10, "बीस": 20, "पच्चीस": 25, "तीस": 30, "चालीस": 40, "पचास": 50, "साठ": 60, "सत्तर": 70, "अस्सी": 80,
-    "नब्बे": 90,
+    "नब्बे": 90, **_HI_1_99, "पांच": 5, "छः": 6,
     # English
     "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10,
     "eleven": 11, "twelve": 12, "thirteen": 13, "fourteen": 14, "fifteen": 15, "sixteen": 16, "seventeen": 17,
@@ -45,13 +46,28 @@ UNITS = {
     "நூற்றம்பது": 150, "நூற்றைம்பது": 150,
 }
 MULT = {"sau": 100, "सौ": 100, "hundred": 100, "hazaar": 1000, "hazar": 1000, "hajar": 1000, "हज़ार": 1000,
-        "हजार": 1000, "thousand": 1000, "lakh": 100000, "lac": 100000, "लाख": 100000,
+        "हजार": 1000, "thousand": 1000, "lakh": 100000, "lac": 100000, "लाख": 100000, "crore": 10000000,
+        "crores": 10000000, "karod": 10000000, "karor": 10000000, "करोड़": 10000000, "करोड": 10000000,
         "ನೂರು": 100, "ಸಾವಿರ": 1000, "వంద": 100, "వందలు": 100, "వందల": 100, "వెయ్యి": 1000, "వేలు": 1000, "వేల": 1000,
         "நூறு": 100, "ஆயிரம்": 1000, "ನೂರ": 100, "ಸಾವಿರದ": 1000, "నూట": 100, "నూరు": 100, "நூற்று": 100,
-        "ஆயிரத்து": 1000}
+        "ஆயிரத்து": 1000, "million": 1000000, "millions": 1000000, "billion": 1000000000}
 FRAC = {"dedh": 1.5, "derh": 1.5, "डेढ़": 1.5, "डेढ": 1.5, "dhai": 2.5, "adhai": 2.5, "ढाई": 2.5}
 SAADE = {"saade", "sade", "saare", "साढ़े", "साढे"}
+SAWA = {"sawa", "sava", "savaa", "सवा"}  # one and a quarter: सवा सौ = 125
 PAUNE = {"paune", "pone", "पौने"}
+
+# "5 kg", "2 packet", "5 customers": the number before these words is a quantity or a count, never rupees
+QTY = set("""kg kgs kilo kilos kilogram kilograms g gm gms gram grams litre liter litres liters ltr ltrs ml packet packets
+    pkt pkts pack packs piece pieces pcs pc dozen bag bags bottle bottles box boxes tin tins quintal kilos meter metre
+    किलो किलोग्राम ग्राम लीटर पैकेट दर्जन बोतल डिब्बा ಕೆಜಿ ಕಿಲೋ ಗ್ರಾಂ ಲೀಟರ್ ಪ್ಯಾಕೆಟ್ కిలో కిలోల కిలోలు గ్రాములు లీటర్ ప్యాకెట్
+    கிலோ கிராம் லிட்டர் பாக்கெட் किलोग्राम्स किलोज़ किलोस केजी ग्राम्स लीटर्स पैकेट्स पैकेटें बोतलें दर्जन""".split())
+ALL = {"all", "everyone", "everybody", "sab", "sabka", "sabki", "sabke", "sabhi", "सब", "सबका", "सबकी", "सभी", "सबके"}
+RECENT = {"recent", "latest", "last", "transactions", "entries", "history", "haal", "pichhli", "pichle", "हाल", "पिछली",
+          "पिछले", "एंट्री", "एंट्रीज़", "लेनदेन", "len", "den"}
+ADD_WORDS = {"add", "jodo", "jod", "जोड़ो", "जोड़", "जोड़ें", "जोड़िए", "banao", "बनाओ", "new", "naya", "नया"}
+CUSTOMER_WORDS = {"customer", "grahak", "ग्राहक"}
+COUNTED = {"customers", "customer", "people", "log", "लोग", "ग्राहक", "ಗ್ರಾಹಕರು", "కస్టమర్లు", "வாடிக்கையாளர்கள்"}
+MAX_AMOUNT = 10 ** 11  # ₹10,000 crore: anything larger is a mishearing, ask again
 
 YES = {"haan", "ha", "haa", "han", "haanji", "ok", "okay", "yes", "yeah", "sahi", "theek", "हाँ", "हां", "हा",
        "ಹೌದು", "అవును", "ஆமா", "ஆம்", "save", "ओके", "यस", "सेव", "हाँजी", "जी",
@@ -59,7 +75,7 @@ YES = {"haan", "ha", "haa", "han", "haanji", "ok", "okay", "yes", "yeah", "sahi"
        "ಓಕೆ", "ಯೆಸ್", "ಸೇವ್", "ఓకే", "ఒకే", "యెస్", "సేవ్", "ஓகே", "யெஸ்", "சேவ்",
        "ஆமாம்", "ஆமாங்க", "சரி", "ಸರಿ", "సరే"}
 NO = {"nahi", "nahin", "na", "no", "not", "wrong", "cancel", "mat", "galat", "नहीं", "नही", "ना", "ಇಲ್ಲ", "కాదు", "இல்லை", "कैंसल", "नो", "ಕ್ಯಾನ್ಸಲ್", "ಕ್ಯಾನ್ಸಲ್", "క్యాన్సిల్", "క్యాన్సల్", "கேன்சல்", "கேன்சல்", "ಬೇಡ", "ಬೇಡಾ", "వద్దు", "வேண்டாம்"}
-QUERY = {"balance", "kitna", "kitne", "kitni", "baaki", "baki", "total", "hisaab", "hisab", "owe", "owes", "due",
+QUERY = {"outstanding", "bakaya", "baqaya", "बकाया", "dues", "balance", "kitna", "kitne", "kitni", "baaki", "baki", "total", "hisaab", "hisab", "owe", "owes", "due",
          "बाकी", "बाक़ी", "कितना", "कितने", "कितनी", "हिसाब", "टोटल", "बैलेंस", "ಟೋಟಲ್", "ಬ್ಯಾಲೆನ್ಸ್", "టోటల్", "బ్యాలెన్స్",
          "டோட்டல்", "பேலன்ஸ்", "ಎಷ್ಟು", "ಬಾಕಿ", "ఎంత", "బాకీ", "எவ்வளவு", "நிலுவை"}
 TAKE = {"liya", "liye", "lia", "li", "le", "लिया", "लिए", "लिये", "ली"}
@@ -71,7 +87,9 @@ PAYMENT_KW = GOT | JAMA | {"payment", "paid", "pay", "received", "gave", "given"
                            "वापस", "ಕೊಟ್ಟರು", "ಕೊಟ್ಟ", "ಕೊಟ್ಟಿದ್ದಾರೆ", "ಪಾವತಿ", "ఇచ్చారు", "ఇచ్చాడు", "చెల్లించారు",
                            "கொடுத்தார்", "கொடுத்தான்", "செலுத்தினார்", "kottaru", "icharu", "koduthaar",
                            "पेमेंट", "पेड", "ಪೇಮೆಂಟ್", "పేమెంట్", "பேமெண்ட்"}
-CREDIT_KW = TAKE | {"udhaar", "udhar", "udhari", "udhaari", "उधार", "credit", "took", "taken", "ಸಾಲ", "ತಗೊಂಡ್ರು",
+# writing an amount on someone's account is credit: "write 250 on Lakshmi's account", "khaate mein 340 likh do"
+ACCOUNT_CREDIT = {"likh", "likho", "likhdo", "लिख", "लिखो", "लिखिए", "write", "khaate", "khate", "khata", "खाते", "खाता", "account"}
+CREDIT_KW = TAKE | ACCOUNT_CREDIT | {"owes", "owe", "udhaar", "udhar", "udhari", "udhaari", "उधार", "credit", "took", "taken", "ಸಾಲ", "ತಗೊಂಡ್ರು",
                     "ತಗೊಂಡರು", "ತೆಗೆದುಕೊಂಡರು", "అప్పు", "తీసుకున్నారు", "తీసుకున్నాడు", "கடன்", "வாங்கினார்",
                     "வாங்கினான்", "saala", "appu", "kadan", "क्रेडिट", "उधारी", "ಕ್ರೆಡಿಟ್", "క్రెడిట్", "கிரெடிட்",
                     "ಸಾಲದಲ್ಲಿ", "ಸಾಲಕ್ಕೆ", "అప్పులో", "అప్పుగా", "கடனாக", "கடனா", "கடனில்",
@@ -114,7 +132,7 @@ ORDER = {"order", "orders", "ordered", "pending", "ऑर्डर", "आर्�
          "ಆರ್ಡರ್‌ಗಳು", "ಆರ್ಡರ್ಗಳು", "ಪೆಂಡಿಂಗ್", "ఆర్డర్", "ఆర్డర్లు", "పెండింగ్", "ஆர்டர்", "ஆர்டர்கள்", "பெண்டிங்"}
 LATER = [("baad", "mein"), ("baad", "me"), ("बाद", "में")]
 # "Ramesh ka saamaan aa gaya", "Ramesh's sugar arrived"
-WANT = {"chahiye", "चाहिए", "mangwana", "mangana", "मंगवाना", "मंगाना", "ಬೇಕು", "ಬೇಕಂತೆ", "ಬೇಕಾಗಿದೆ", "కావాలి",
+WANT = {"नीड्स", "नीड", "वांट्स", "वांट", "needs", "need", "wants", "want", "require", "requires", "chahiye", "चाहिए", "mangwana", "mangana", "मंगवाना", "मंगाना", "ಬೇಕು", "ಬೇಕಂತೆ", "ಬೇಕಾಗಿದೆ", "కావాలి",
         "కావాలంట", "வேணும்", "வேண்டும்", "வேணுமாம்"}  # VERIFY by native speaker
 CAME = {"ಬಂತು", "ಬಂದ್ಬಿಡ್ತು", "వచ్చేసింది", "வந்துச்சு", "வந்தாச்சு", "வந்துருச்சு"}  # goods came; VERIFY
 MONEY = {"paise", "paisa", "पैसे", "पैसा", "ಹಣ", "ದುಡ್ಡು", "డబ్బు", "డబ్బులు", "பணம்", "காசு", "money", "rupaye",
@@ -128,7 +146,7 @@ AA, GAYA = {"aa", "आ"}, {"gaya", "gayi", "gaye", "gya", "gai", "गया", "�
 NEW = {"naya", "nayi", "naye", "new", "नया", "नई", "नए", "ಹೊಸ", "ಹೊಸಬರು", "కొత్త", "కొత్తవారు", "புதிய", "புதியவர்"}
 SKIP = {"skip", "स्किप", "pata", "ಸ್ಕಿಪ್", "స్కిప్", "ஸ்கிப்"}
 ITEM_FILLER = set("""liye लिए लिये chahiye चाहिए dena deni dene देना देनी देने lana laana लाना mangwana mangana
-    मंगवाना needs need wants want it likho likh लिखो note बाद देनी batao बताओ dikhao दिखाओ sunao सुनाओ
+    मंगवाना needs need wants want it likho likh लिखो note mean actually sorry wait keep rakh rakho रख रखो रखना बाद देनी batao बताओ dikhao दिखाओ sunao सुनाओ
     list show tell me ಹೇಳಿ ತೋರಿಸಿ చెప్పండి చూపించు சொல்லுங்க சொல்லுங்கள் காட்டு ಸಾಮಾನು సామాను சாமான்
     பொருள் பொருட்கள் வேணும் ಬರೆದುಕೊಳ್ಳಿ ಬರ್ಕೊಳ್ಳಿ ಬರ್ಕೊಳಿ రాసుకోండి రాసుకో எழுதிக்கோங்க எழுதிக்கோ காசு ದುಡ್ಡು డబ్బులు baad later saamaan saman सामान goods items stuff hai है hain हैं karo करो
     kar कर gaya gayi gaye aa aaya aayi ಬೇಕು ಕೊಡಬೇಕು ಅವರಿಗೆ ఆయనకు அவருக்கு కావాలి ఇవ్వాలి வேண்டும் கொடுக்கணும்""".split())
@@ -149,7 +167,9 @@ KEYWORDS = (set(UNITS) | set(MULT) | set(FRAC) | SAADE | PAUNE | YES | NO | QUER
             | POSTPOS | TIME | RUPEE | STOP | {"pe", "baaki"} | set().union(*ORDINALS) | ORDER | ARRIVED | AA
             | GAYA | NEW | SKIP | ITEM_FILLER | HONORIFIC | FILLER | GIVE_I | GIVE_HE | PAID_REG | CREDIT_REG | WANT
             | CAME | TOTAL | {"kiska", "kiski", "kiske", "kaun", "किसका", "किसकी", "कौन"} | CONTACT | CONTACT_VERBS
-            | PRONOUN | COLLECT | WEEK | MOST | MONEY | {"as", "to", "for", "me", "my", "who", "i", "did", "show", "today's", "this", "that", "these", "all"})
+            | PRONOUN | COLLECT | WEEK | MOST | MONEY | QTY | COUNTED | ALL | RECENT | ADD_WORDS | CUSTOMER_WORDS
+            | {"which", "what", "kaun", "konsa", "kaunsa", "कौन", "कौनसा", "रूप", "roop", "rup", "is", "are", "dikhao",
+               "दिखाओ", "batao", "बताओ", "give", "put", "keep"} | {"as", "to", "for", "me", "my", "who", "i", "did", "show", "today's", "this", "that", "these", "all"})
 
 
 def tokenize(text: str) -> list[str]:
@@ -175,39 +195,61 @@ def amounts(tokens: list[str]) -> list[int]:
     """Every number phrase in the sentence: '2 hazaar 500', 'teen sau chalees', 'saade teen sau'..."""
     out, total, cur, mod, active = [], 0.0, 0.0, 0.0, False
 
-    def flush():
+    keys = [_num_key(t) for t in tokens]
+    # "do" is Hindi 2 only next to money/units/hundreds ("do sau", "do kilo", "do rupaye"); otherwise it's English "do"
+    keys = [k if k != "do" or (i + 1 < len(keys) and (keys[i + 1] in MULT or keys[i + 1] in RUPEE or keys[i + 1] in QTY
+                                                       or keys[i + 1] in COUNTED)) else "_do"
+            for i, k in enumerate(keys)]
+
+    def flush(i):
         nonlocal total, cur, mod, active
-        if active:
+        if active and not (i < len(keys) and keys[i] in QTY | COUNTED):  # "5 kg", "5 customers": not ₹5
             out.append(int(round(total + cur)))
         total = cur = mod = 0.0
         active = False
 
-    for t in map(_num_key, tokens):
+    for i, t in enumerate(keys):
         if t.isdigit() or t in UNITS:
             v = int(t) if t.isdigit() else UNITS[t]
-            if active and cur and (t.isdigit() or cur % 100):
-                flush()
+            # "ninety nine", "twenty five": a single digit after a round tens joins it; other runs are new numbers
+            joins = not t.isdigit() and cur % 10 == 0 and v < 10
+            prev = keys[i - 1] if i else ""
+            if (not t.isdigit() and active and 1 <= cur <= 9 and total == 0 and 10 <= v <= 99 and prev in UNITS
+                    and UNITS[prev] == cur and not mod and prev.isascii() and prev not in ("do", "teen", "char", "paanch", "panch")):
+                cur = cur * 100 + v  # "two fifty" = 250, "three forty" = 340
+                continue
+            if active and cur and (t.isdigit() or (cur % 100 and not joins)):
+                flush(i)
             cur += v + mod
             mod, active = 0.0, True
         elif t in FRAC:
             if active and cur:
-                flush()
+                flush(i)
             cur, active = cur + FRAC[t], True
-        elif t in SAADE or t in PAUNE:
+        elif t in SAADE or t in PAUNE or t in SAWA:
             if active and cur:
-                flush()
-            mod, active = (0.5 if t in SAADE else -0.25), True
+                flush(i)
+            mod, active = (0.5 if t in SAADE else 0.25 if t in SAWA else -0.25), True
         elif t in MULT:
             m = MULT[t]
+            if mod and not cur:  # "sawa sau" = 1.25 x 100
+                cur, mod = 1 + mod, 0.0
             if m == 100:
                 cur = (cur or 1) * 100
             else:
                 total, cur = total + (cur or 1) * m, 0.0
             active = True
+        elif active and t in ("and", "aur", "और") and i + 1 < len(keys) and (keys[i + 1] in UNITS or keys[i + 1] in MULT):
+            continue  # "three hundred and forty"
         else:
-            flush()
-    flush()
+            flush(i)
+    flush(len(keys))
     return [a for a in out if a > 0]
+
+
+def has_quantity(tokens):
+    return any(t in QTY and i and (tokens[i - 1].isdigit() or _num_key(tokens[i - 1]) in UNITS)
+               for i, t in enumerate(tokens))
 
 
 _UNIT_KEYS = {name_key(w): w for w in UNITS if script_of(w) not in (None, "latin")}
@@ -259,16 +301,38 @@ def extract_name(tokens: list[str]):
     return None, False
 
 
-_PHONE = re.compile(r"(?<!\d)(?:\+?91[\s-]?|0)?([6-9]\d{4}[\s-]?\d{5})(?!\d)")
+_GROUP = re.compile(r"\+?\d+")
 
 
 def extract_phone(text: str):
-    """Indian mobile number in the sentence -> (10 digits or None, text without it). Phone digits are never money."""
+    """Indian mobile number in the sentence -> (10 digits or None, text without it). Phone digits are never money.
+
+    Spoken numbers come back grouped any way ("999 9999999", "99999 99999", "999-999-9999", "+91 98765 43210"), so
+    consecutive digit groups separated only by spaces, hyphens or dots are joined; 10 digits starting 6-9 (after an
+    optional +91 / 91 / 0 prefix) make a phone number."""
     t = text.translate(_DIGIT_TABLE)
-    m = _PHONE.search(t)
-    if not m:
-        return None, text
-    return re.sub(r"\D", "", m.group(1)), t[:m.start()] + " " + t[m.end():]
+    groups = list(_GROUP.finditer(t))
+    for i in range(len(groups)):
+        digits, end = "", None
+        for j in range(i, len(groups)):
+            if j > i and not re.fullmatch(r"[\s.-]+", t[groups[j - 1].end():groups[j].start()]):
+                break
+            digits += groups[j].group().lstrip("+")
+            end = groups[j].end()
+            core = digits[2:] if len(digits) == 12 and digits.startswith("91") else digits[1:] if len(digits) == 11 and digits[0] == "0" else digits
+            if len(core) == 10 and core[0] in "6789":
+                return core, t[:groups[i].start()] + " " + t[end:]
+            if len(digits) >= 12:
+                break
+    return None, text
+
+
+def _txn_with_amount(tokens, amount):
+    """Account words ("khaate mein", "write on ... account") mean credit only when an amount is said."""
+    kind = txn_type(tokens)
+    if kind == "credit" and amount is None and not any(t in CREDIT_KW - ACCOUNT_CREDIT for t in tokens):
+        return None
+    return kind
 
 
 def txn_type(tokens: list[str]):
@@ -308,7 +372,8 @@ def is_order(tokens):
     # "Ramesh ko 5 kilo cheeni chahiye" / "ರಮೇಶ್‌ಗೆ 2 ಕೆಜಿ ಸಕ್ಕರೆ ಬೇಕು": wanting goods, unless it is about credit/money
     # "ke liye" is "for", not "took"
     rest = [t for i, t in enumerate(tokens) if not (t in ("liye", "लिए", "लिये") and i and tokens[i - 1] in ("ke", "के"))]
-    return any(t in WANT for t in rest) and not any(t in CREDIT_KW | PAYMENT_KW | MONEY | RUPEE for t in rest)
+    money = any(t in CREDIT_KW | PAYMENT_KW | MONEY | RUPEE for t in rest)
+    return (any(t in WANT for t in rest) or has_quantity(tokens)) and not money
 
 
 def is_arrival(tokens):
@@ -319,7 +384,7 @@ def is_arrival(tokens):
 
 def extract_items(tokens, name):
     """What the customer wants, quantity included: '5 kilo cheeni'."""
-    skip = KEYWORDS - set(UNITS) - set(MULT) - set(FRAC) | ITEM_FILLER | {"for"}
+    skip = (KEYWORDS - set(UNITS) - set(MULT) - set(FRAC) - QTY) | ITEM_FILLER | {"for"}
     nm = (name or "").lower()
     return " ".join(t for t in tokens if t != nm and (t.isdigit() or (t not in skip and len(t) > 1)))
 
@@ -356,18 +421,110 @@ class Parsed:
     phone: str | None = None
     name_strong: bool = False
     undo: bool = False
+    add_customer: bool = False
+    recent: bool = False
     list_goods: bool = False
+    qty: bool = False  # the sentence has a quantity like "5 kg"
     contact: bool = False  # saving / updating a phone number
     pronoun: bool = False  # "he paid 200": refers to the last customer
     collections: str | None = None  # "today" | "week"
     top_debtor: bool = False
 
 
+# Phone numbers read out digit by digit: "nine eight seven six ..." / "नौ आठ सात छह ..."
+_DIGIT_WORDS = {"zero": "0", "oh": "0", "शून्य": "0", "जीरो": "0", "one": "1", "two": "2", "three": "3", "four": "4", "five": "5", "six": "6",
+                "seven": "7", "eight": "8", "nine": "9", "शून्य": "0", "ज़ीरो": "0", "एक": "1", "दो": "2", "तीन": "3",
+                "चार": "4", "पांच": "5", "पाँच": "5", "छह": "6", "सात": "7", "आठ": "8", "नौ": "9"}
+
+
+_REPEAT = {"double": 2, "triple": 3, "डबल": 2, "ट्रिपल": 3}
+
+
+def _phone_from_words(text: str):
+    """In a sentence about a phone/number, join every spoken number piece into digits:
+    'triple nine triple nine double nine double nine', 'नौ सौ निन्यानवे नौ नौ नौ नौ', 'ninety eight seven six ...'."""
+    toks = re.sub(r"[,.?!।]", " ", text.translate(_DIGIT_TABLE).lower()).split()
+    out, last_word_val, i = [], None, 0
+    while i < len(toks):
+        t = toks[i]
+        k = _num_key(t)
+        if t in _REPEAT and i + 1 < len(toks):
+            nxt = _DIGIT_WORDS.get(toks[i + 1]) or (str(UNITS[_num_key(toks[i + 1])]) if _num_key(toks[i + 1]) in UNITS else None)
+            if nxt is not None and len(nxt) == 1:
+                out.append(nxt * _REPEAT[t])
+                last_word_val, i = None, i + 2
+                continue
+        if t.isdigit():
+            out.append(t)
+            last_word_val = None
+        elif t in _DIGIT_WORDS and t not in UNITS:  # zero / oh / शून्य
+            out.append(_DIGIT_WORDS[t])
+            last_word_val = None
+        elif k in UNITS:
+            v = UNITS[k]
+            if last_word_val is not None and last_word_val % 10 == 0 and last_word_val % 100 and v < 10:
+                out[-1] = str(last_word_val + v)  # "ninety" + "nine" -> 99
+                last_word_val = None
+            elif last_word_val is not None and last_word_val % 100 == 0 and last_word_val >= 100 and v < 100:
+                out[-1] = str(last_word_val + v)  # "nine hundred" + "ninety nine" -> 999
+                last_word_val = last_word_val + v if v % 10 == 0 else None
+            else:
+                out.append(str(v))
+                last_word_val = v
+        elif k in MULT and MULT[k] == 100 and out and last_word_val is not None:
+            out[-1] = str(last_word_val * 100)
+            last_word_val = last_word_val * 100
+        elif out and not (t in RUPEE or t in ("and", "aur")):
+            if len("".join(out)) >= 10:
+                break
+            out, last_word_val = [], None
+        i += 1
+    digits = "".join(out)
+    if len(digits) == 12 and digits.startswith("91"):
+        digits = digits[2:]
+    if len(digits) == 11 and digits.startswith("0"):
+        digits = digits[1:]
+    return digits if len(digits) == 10 and digits[0] in "6789" else None
+
+
+def join_spoken_digits(text: str) -> str:
+    """A run of 7+ single-digit words becomes one digit string (never shorter runs: 'do teen sau' stays words).
+    English 'two five zero' (3+ digit words including zero) is read out digit by digit too."""
+    words = text.split()
+    out, run = [], []
+    for w in words + [""]:
+        d = _DIGIT_WORDS.get(w.strip(",.?!।").lower())
+        if d is not None:
+            run.append((w, d))
+            continue
+        if len(run) >= 7 or (len(run) >= 3 and any(d == "0" for _, d in run) and all(x.isascii() for x, _ in run)):
+            out.append("".join(d for _, d in run))
+        else:
+            out.extend(x for x, _ in run)
+        run = []
+        if w:
+            out.append(w)
+    return " ".join(out)
+
+
 def parse(text: str) -> Parsed:
-    phone, text = extract_phone(text)
+    spoken = text
+    text = join_spoken_digits(text)
+    phone, rest = extract_phone(text)
+    if not phone and any(t in CONTACT for t in tokenize(text)):
+        phone = _phone_from_words(spoken)  # before digit-joining, so "ninety eight ..." and "double nine" stay whole
+        text = spoken if phone else text
+        if phone:  # the whole number was read out in words: it is the phone, not an amount
+            rest = " ".join(w for w in text.split() if not (_num_key(w.strip(",.?!।").lower()) in UNITS
+                                                          or w.strip(",.?!।").lower() in _DIGIT_WORDS
+                                                          or w.strip(",.?!।").lower() in _REPEAT or w.strip(",.?!।").isdigit()
+                                                          or _num_key(w.strip(",.?!।").lower()) in MULT))
+    text = rest  # a 10-digit mobile number is always a phone, never an amount (changing it still needs confirm)
     tokens = tokenize(text)
     nums = amounts(tokens)
     amount = max(nums) if nums else None
+    if amount is not None and amount > MAX_AMOUNT:
+        amount = None  # implausible: ask for the amount instead of saving a mishearing
     first = tokens[0] if tokens else ""
     short = len(tokens) <= 3
     # A "no" word anywhere beats a yes: "theek nahi hai", "ಸರಿ ಇಲ್ಲ", "not correct". Bare "na" counts only on its own.
@@ -382,7 +539,7 @@ def parse(text: str) -> Parsed:
         tokens=tokens,
         amount=amount,
         name=name,
-        txn_type=None if (is_query or order or arrival) else txn_type(tokens),
+        txn_type=None if (is_query or order or arrival) else _txn_with_amount(tokens, amount),
         is_query=is_query,
         yes=short and first in YES and not negated,
         no=short and (first in NO or negated),
@@ -395,12 +552,15 @@ def parse(text: str) -> Parsed:
         phone=phone,
         name_strong=strong,
         undo=is_undo(tokens),
+        add_customer=not phone and any(t in ADD_WORDS for t in tokens) and any(t in CUSTOMER_WORDS for t in tokens),
+        recent=amount is None and any(t in RECENT for t in tokens) and not any(t in ORDER for t in tokens),
+        qty=has_quantity(tokens),
         contact=bool(phone) or (any(t in CONTACT for t in tokens) and any(t in CONTACT_VERBS for t in tokens)),
         pronoun=any(t in PRONOUN for t in tokens),
         collections=(("week" if any(t in WEEK for t in tokens) else "today") if any(t in COLLECT for t in tokens)
                      or (any(t in TIME | WEEK for t in tokens) and any(t in GOT | {"received", "मिले"} for t in tokens)
                          and amount is None) else None),
-        top_debtor=any(t in MOST for t in tokens) and any(t in QUERY | {"owe", "owes", "debtor", "udhaar"} for t in tokens),
+        top_debtor=any(t in MOST for t in tokens) and any(t in QUERY | {"owe", "owes", "debtor", "udhaar", "उधार"} for t in tokens),
         list_goods=is_query and any(t in GOODS for t in tokens),  # "kiska saamaan baaki hai"
     )
 

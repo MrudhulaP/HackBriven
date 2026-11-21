@@ -72,7 +72,7 @@ def test_mixed_script_llm_reply_rejected():
 
 
 @pytest.mark.parametrize("mode,regional,code", [("auto", "", "indic-auto"), ("auto", "kn", "hi-IN,en-IN,kn-IN"),
-                                                ("ta", "kn", "ta-IN"), ("auto", "xx", "indic-auto")])
+                                                ("ta", "kn", "ta-IN,en-IN,kn-IN"), ("en", "", "en-IN,hi-IN"), ("auto", "xx", "indic-auto")])
 def test_auto_language_with_regional_setting(mode, regional, code):
     assert stt_language(mode, regional) == code
 
@@ -156,7 +156,7 @@ def test_llm_latin_name_matches_tamil_spoken_name(store):
 
 
 @pytest.mark.parametrize("text,amount", [("இல்லை நானூற்றி ஐம்பது", 450), ("நூற்றி ஐம்பது ரூபாய்", 150),
-                                         ("ಮುನ್ನೂರು", 300), ("ఐదు వందల", 500), ("ಎರಡು", 2), ("இரண்டு கிலோ", 2),
+                                         ("ಮುನ್ನೂರು", 300), ("ఐదు వందల", 500), ("ಎರಡು", 2), ("இரண்டு கிலோ", None),  # 2 kilo is a quantity
                                          ("రమేష్ బాకీ ఎంత", None)])  # 'how much' is not 8
 def test_number_words_ignore_final_vowel(text, amount):
     assert parse(text).amount == amount

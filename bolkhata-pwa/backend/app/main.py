@@ -17,6 +17,7 @@ from fastapi.staticfiles import StaticFiles
 
 from . import gnani
 from .ai.llm_brain import build_brain
+from .notify import build_sender, notify_arrival
 from .dialogue import Conversation, pending_text
 from .gnani import FRAME, FrameSplitter, GnaniError
 from .prompts import ARRIVED_MSG, REMINDER, UI, say
@@ -40,6 +41,7 @@ def create_app(db=None, brain="env") -> FastAPI:
     app = FastAPI(title="BolKhata")
     app.state.store = store
     app.state.brain = build_brain() if brain == "env" else brain  # None = rules only
+    app.state.sender = build_sender()  # None = automatic messages not configured
 
     def key():
         return os.environ.get("GNANI_API_KEY", "")
@@ -104,14 +106,30 @@ def create_app(db=None, brain="env") -> FastAPI:
         return [o for o in store.orders() if o["status"] != "closed"][::-1]
 
     @app.put("/api/orders/{oid}")
-    def set_order(oid: str, body: dict):
+    async def set_order(oid: str, body: dict, lang: str = "en"):
+        """Status first; for 'arrived' the customer message is attempted afterwards and reported separately."""
         try:
             ok = store.set_order_status(oid, body.get("status"))
         except ValueError as e:
             raise HTTPException(422, str(e)) from e
         if not ok:
             raise HTTPException(404, "order not found")
-        return {"ok": True}
+        note = None
+        if body.get("status") == "arrived":
+            note = await notify_arrival(store, [oid], app.state.sender, arrival_text(store, lang))
+        return {"ok": True, "notification": note}
+
+    @app.post("/api/orders/{oid}/notify")
+    async def renotify(oid: str, lang: str = "en"):
+        """Retry the arrival message (never resends one that was already sent)."""
+        note = await notify_arrival(store, [oid], app.state.sender, arrival_text(store, lang))
+        if note is None:
+            raise HTTPException(422, "order is not marked arrived")
+        return {"ok": True, "notification": note}
+
+    @app.get("/api/notifications")
+    def notifications():
+        return list(store.notifications_c.find({}, {"_id": 0}).sort("updated_at", -1).limit(200))
 
     @app.get("/api/evening")
     def evening(lang: str = "hi"):
@@ -164,7 +182,9 @@ def create_app(db=None, brain="env") -> FastAPI:
     @app.websocket("/ws/voice")
     async def ws_voice(ws: WebSocket):
         await ws.accept()
-        await VoiceSession(ws, store, key(), app.state.brain).run()
+        session = VoiceSession(ws, store, key(), app.state.brain)
+        session.sender = app.state.sender
+        await session.run()
 
     dist = Path(os.environ.get("FRONTEND_DIST", Path(__file__).resolve().parents[2] / "frontend" / "dist"))
     if dist.is_dir():
@@ -176,6 +196,11 @@ def create_app(db=None, brain="env") -> FastAPI:
             return FileResponse(f if path and f.is_file() and dist in f.resolve().parents else dist / "index.html")
 
     return app
+
+
+def arrival_text(store, lang):
+    shop = store.settings()["shop_name"]
+    return lambda c, items: ARRIVED_MSG.get(lang, ARRIVED_MSG["en"]).format(name=c["name"], items=items, shop=shop)
 
 
 def evening_summary(store, lang):
@@ -196,6 +221,7 @@ class VoiceSession:
 
     def __init__(self, ws: WebSocket, store: Store, api_key: str, brain=None):
         self.ws, self.store, self.key = ws, store, api_key
+        self.sender = None
         self.brain, self.brain_on = brain, brain is not None
         s = store.settings()
         # English is the starting language; Auto still switches to whatever language the shopkeeper speaks
@@ -263,7 +289,11 @@ class VoiceSession:
             if "bargeIn" in m:
                 self.barge_in = bool(m["bargeIn"])
             if "lang" in m:
+                changed = m["lang"] != self.conv.mode
                 self.conv.set_mode(m["lang"])
+                if changed and self.stt:  # recognition follows the chosen language straight away
+                    await self.close_stt()
+                    await self.open_stt()
             if "brain" in m:
                 self.brain_on = bool(m["brain"]) and self.brain is not None
             if m.get("engine") and m["engine"] != self.engine:
@@ -297,7 +327,8 @@ class VoiceSession:
                 r = (self.conv.tap_confirm(True) if a == "save" else self.conv.tap_confirm(False) if a == "cancel"
                      else self.conv.tap_choose(int(m.get("index", -1))) if a == "choose"
                      else self.conv.tap_amount(int(m.get("amount", 0))) if a == "amount"
-                     else self.conv.undo() if a == "undo" else None)
+                     else self.conv.undo() if a == "undo"
+                     else self.conv.tap_kind(int(m.get("index", -1))) if a == "kind" else None)
                 if r:
                     await self.reply({**r, "req": str(m.get("id") or "")})
 
@@ -401,6 +432,9 @@ class VoiceSession:
             await self.reply({**r, "source": source, "brain_ms": ms, "req": req}, speak)
 
     async def reply(self, r, speak=True):
+        if r.get("arrived_orders"):  # voice-confirmed arrival: message the customer, report the outcome with the reply
+            r = {**r, "notification": await notify_arrival(self.store, r["arrived_orders"], self.sender,
+                                                           arrival_text(self.store, r.get("lang", "en")))}
         await self.send(r)
         await self.stop_tts()
         if not speak:

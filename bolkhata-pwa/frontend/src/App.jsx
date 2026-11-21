@@ -33,6 +33,7 @@ export default function App() {
   const [sheet, setSheet] = useState(null)
   const [version, setVersion] = useState(0)
   const [micSettings, setMicSettings] = useState(null)
+  const [diagnostics, setDiagnostics] = useState(store.get('bk_diag') === '1')
   const voice = useRef(null)
   const consoleRef = useRef(null)
   const [conv, setConv] = useState({ transcript: '', reply: null, latency: {}, notice: '', listening: false, speaking: false })
@@ -207,10 +208,7 @@ export default function App() {
   const consoleEl = (
     <div ref={consoleRef}>
       <VoiceConsole t={t} conv={conv} voice={voice.current} started={started} onStart={() => ensureStarted()} onMic={toggleMic}
-        onSubmit={submit} lang={lang} uiLang={uiLang} engine={engine} onEngine={cycleEngine}
-        bargeIn={bargeIn} onBarge={() => { setBargeIn(!bargeIn); voice.current?.setConfig({ bargeIn: !bargeIn }) }}
-        brainOn={brainOn} onBrain={() => { setBrainOn(!brainOn); voice.current?.setConfig({ brain: !brainOn }) }}
-        llm={meta.llm && meta.llm.length > 0} />
+        onSubmit={submit} lang={lang} uiLang={uiLang} diagnostics={diagnostics} onOpenCustomer={openCustomerPage} />
     </div>
   )
 
@@ -282,10 +280,18 @@ export default function App() {
                 </div>
               </div>
             )}
-            {tab === 'customers' && <Customers t={t} uiLang={uiLang} open={openCustomer} setOpen={setOpenCustomer} />}
-            {tab === 'orders' && <Orders t={t} uiLang={uiLang} />}
-            {tab === 'ledger' && <Ledger t={t} />}
-            {tab === 'settings' && <Settings t={t} meta={meta} micSettings={micSettings} onSaved={(s) => { setSettings(s); setVersion((v) => v + 1) }} />}
+            {tab === 'customers' && <Customers t={t} uiLang={uiLang} open={openCustomer} setOpen={setOpenCustomer} version={version} />}
+            {tab === 'orders' && <Orders t={t} uiLang={uiLang} version={version} onOpenCustomer={openCustomerPage}
+              onChanged={() => setVersion((v) => v + 1)} />}
+            {tab === 'ledger' && <Ledger t={t} version={version} />}
+            {tab === 'settings' && (
+              <Settings t={t} meta={meta} micSettings={micSettings} onSaved={(s) => { setSettings(s); setVersion((v) => v + 1) }}
+                voice={{ engine, onEngine: cycleEngine, engineName: ENGINE_NAMES[engine], bargeIn, brainOn, llm: meta.llm && meta.llm.length > 0,
+                  diagnostics,
+                  onBarge: () => { setBargeIn(!bargeIn); voice.current?.setConfig({ bargeIn: !bargeIn }) },
+                  onBrain: () => { setBrainOn(!brainOn); voice.current?.setConfig({ brain: !brainOn }) },
+                  onDiagnostics: () => { setDiagnostics(!diagnostics); store.set('bk_diag', diagnostics ? '0' : '1') } }} />
+            )}
           </ErrorBoundary>
         </main>
       </div>

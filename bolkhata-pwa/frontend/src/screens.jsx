@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { LANG_NAMES, api } from './App.jsx'
+import { ArrivalNote } from './VoiceConsole.jsx'
 
 // A failed load shows a message with Retry instead of an empty screen.
 function LoadError({ t, retry }) {
@@ -11,15 +12,15 @@ const money = (n) => `₹${n}`
 
 const day = (iso) => (iso ? new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : '—')
 
-export function Customers({ t, uiLang, open, setOpen }) {
+export function Customers({ t, uiLang, open, setOpen, version }) {
   const [list, setList] = useState([])
   const [q, setQ] = useState('')
   const [byBalance, setByBalance] = useState(true)
   const [err, setErr] = useState(false)
   const load = () => { setErr(false); api('/api/customers').then(setList).catch(() => setErr(true)) }
-  useEffect(load, [open])
+  useEffect(load, [open, version])
 
-  if (open) return <History t={t} id={open} uiLang={uiLang} back={() => setOpen(null)} />
+  if (open) return <History t={t} id={open} uiLang={uiLang} back={() => setOpen(null)} version={version} />
   const shown = list
     .filter((c) => `${c.name} ${c.note}`.toLowerCase().includes(q.toLowerCase()))
     .sort((a, b) => (byBalance ? b.balance - a.balance : a.name.localeCompare(b.name)))
@@ -45,7 +46,7 @@ export function Customers({ t, uiLang, open, setOpen }) {
   )
 }
 
-function History({ t, id, uiLang, back }) {
+function History({ t, id, uiLang, back, version }) {
   const [c, setC] = useState(null)
   const [phone, setPhone] = useState('')
   const [note, setNote] = useState('')
@@ -56,7 +57,7 @@ function History({ t, id, uiLang, back }) {
     setLoadErr(false)
     api(`/api/customers/${id}`).then((x) => { setC(x); setPhone(x.phone || ''); setNote(x.note || '') }).catch(() => setLoadErr(true))
   }
-  useEffect(load, [id])
+  useEffect(load, [id, version])
   if (loadErr) return <div className="page"><button className="btn" onClick={back}>← {t('back')}</button><LoadError t={t} retry={load} /></div>
   if (!c) return null
 
@@ -103,18 +104,21 @@ function History({ t, id, uiLang, back }) {
   )
 }
 
-export function Orders({ t, uiLang }) {
+export function Orders({ t, uiLang, version, onOpenCustomer, onChanged }) {
+  const [note, setNote] = useState(null)
   const [list, setList] = useState(null)
   const [err, setErr] = useState('')
   const load = () => { setErr(''); api('/api/orders').then(setList).catch(() => setErr('load')) }
-  useEffect(load, [])
+  useEffect(load, [version])
   if (err === 'load') return <LoadError t={t} retry={load} />
   if (!list) return null
 
   async function setStatus(o, status) {
     try {
-      await api(`/api/orders/${o.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) })
+      const r = await api(`/api/orders/${o.id}?lang=${uiLang}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) })
+      setNote(r.notification || null) // arrived: show what happened to the customer message
       load()
+      onChanged?.()
     } catch (e) { setErr(e.message) }
   }
   async function notify(o) {
@@ -135,6 +139,7 @@ export function Orders({ t, uiLang }) {
   return (
     <div className="page">
       {err && <p className="notice">{err}</p>}
+      {note && <ArrivalNote t={t} note={note} uiLang={uiLang} onOpenCustomer={onOpenCustomer} />}
       <h2>{t('pendingOrders')} ({pending.length})</h2>
       <ul className="history">
         {pending.map((o) => row(o, <button className="btn solid" onClick={() => setStatus(o, 'arrived')}>📦 {t('markArrived')}</button>))}
@@ -150,12 +155,12 @@ export function Orders({ t, uiLang }) {
   )
 }
 
-export function Ledger({ t }) {
+export function Ledger({ t, version }) {
   const [data, setData] = useState(null)
   const [f, setF] = useState({ q: '', type: '', lang: '' })
   const [err, setErr] = useState(false)
   const load = () => { setErr(false); api('/api/ledger').then(setData).catch(() => setErr(true)) }
-  useEffect(load, [])
+  useEffect(load, [version])
   if (err) return <LoadError t={t} retry={load} />
   if (!data) return null
   const rows = data.entries.filter((e) =>
@@ -199,7 +204,7 @@ export function Ledger({ t }) {
   )
 }
 
-export function Settings({ t, meta, micSettings, onSaved }) {
+export function Settings({ t, meta, micSettings, onSaved, voice }) {
   const [s, setS] = useState(null)
   const [done, setDone] = useState(false)
   const [err, setErr] = useState('')
@@ -249,6 +254,22 @@ export function Settings({ t, meta, micSettings, onSaved }) {
             <span key={k}>{k.replace(/([A-Z])/g, ' $1').toLowerCase()}: {micSettings[k] === true ? t('micOn') : micSettings[k] === false ? t('micOff') : '—'}</span>
           ))}
         </div>
+      )}
+      {voice && (
+        <fieldset className="advanced">
+          <legend>{t('voiceAdvanced')}</legend>
+          <p className="muted">{t('voiceAdvancedHelp')}</p>
+          <div className="adv-row"><span><b>{t('engineLabel')}</b><small>{voice.engineName}</small></span>
+            <button type="button" className="btn" onClick={voice.onEngine}>{voice.engineName}</button></div>
+          <label className="switch-row"><input type="checkbox" checked={voice.bargeIn} onChange={voice.onBarge} />
+            <span><b>{t('bargeIn')}</b><small>{t('bargeInHelp')}</small></span></label>
+          {voice.llm && (
+            <label className="switch-row"><input type="checkbox" checked={voice.brainOn} onChange={voice.onBrain} />
+              <span><b>{t('brain')}</b><small>{t('brainHelp')}</small></span></label>
+          )}
+          <label className="switch-row"><input type="checkbox" checked={voice.diagnostics} onChange={voice.onDiagnostics} />
+            <span><b>{t('showDiagnostics')}</b></span></label>
+        </fieldset>
       )}
       <p className="muted">{meta.seed_demo ? t('demoOn') : t('demoOff')}</p>
     </form>

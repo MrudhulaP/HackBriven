@@ -86,11 +86,13 @@ ROMAN_MARKERS = {
         kitna kitne kitni baaki baki haan haa han nahi nahin aaj kal abhi rupaye rupay wala wale wali jama kiya aur ji
         pe par sau hazaar hazar dedh dhai saade paune pehla pehle doosra dusra kya mein gaya diye lena dena hisaab
         hisab paise ek do teen char chaar paanch das bees tees chalees chalis pachaas sattar assi theek bolo
-        naya grahak saamaan chahiye deni dena batao karo""".split()),
+        naya grahak saamaan chahiye deni dena batao karo khaate likh likho sabka sabse zyada mile diye liye bakaya
+        dikhao jodo""".split()),
     "en": set("""took take taken gave give given paid pay payment credit balance how much what is the of owe owes
         does yes no on for to from and today yesterday first second third cancel save okay received has his her
         hundred thousand rupees who did order orders needs need it kg arrived new pending tell show number phone
-        mobile as add update money collect collected collections week most me my""".split()),
+        mobile as add update money collect collected collections week most me my recent transactions entries outstanding
+        customer customers dues latest last which pending paid owes owe write account keep""".split()),
     "kn": set("kottaru kotta kottidare kodi tagondru tegedukondaru saala eshtu baaki houdu illa modala".split()),
     "te": set("icharu ichadu ichindi theesukunnaru appu entha avunu kaadu modati".split()),
     "ta": set("koduthaar koduthan vaanginaar kadan evvalavu aama illai mudhal".split()),

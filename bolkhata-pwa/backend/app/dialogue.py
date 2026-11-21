@@ -68,6 +68,10 @@ class Conversation:
             self.lang = detect_language(text, self.lang, detected)
         if spoken and self._is_junk(text):
             return None, "junk", None
+        if spoken and self.state == "idle":
+            q = parse(text)
+            if (q.yes or q.no) and not q.amount and not q.name:
+                return None, "junk", None  # a stray "yes"/"no" (echo or a repeated segment) with nothing to answer
         before = self._snapshot()
         r = self._rules(text)
         if brain is None or not (self.miss or self.soft_miss):
@@ -148,6 +152,17 @@ class Conversation:
             self.state = "idle"
             self.p = {"intent": "phone", "name": display_name(b.customer) if " " not in b.customer else b.customer,
                       "phone": b.phone, "raw": text, "type": None, "amount": None, "items": ""}
+            return self._advance()
+        if A == BrainAction.recentEntries:
+            return self._recent()
+        if A == BrainAction.addCustomer:
+            if not b.customer:
+                return None
+            if self.store.find(b.customer):
+                return self._reset("customerExists", name=self.store.find(b.customer)[0]["name"])
+            self.state = "idle"
+            self.p = {"intent": "customer", "name": display_name(b.customer) if " " not in b.customer else b.customer,
+                      "raw": text, "type": None, "amount": None, "items": ""}
             return self._advance()
         if A == BrainAction.queryCollections:
             return self._collections("week" if any(w in text.lower() for w in ("week", "hafta", "हफ्त")) else "today")
@@ -246,7 +261,8 @@ class Conversation:
         if self.state == "askPhone" and p.phone and not (p.name and p.name_strong):
             return False  # "98765 43210" answers "what is the number?"
         return bool(p.is_query or p.collections or p.top_debtor or p.list_goods or p.contact
-                    or (p.name and p.amount and p.txn_type) or (p.order and p.name and p.items) or (p.arrival and p.name))
+                    or p.recent or p.add_customer or (p.name and p.amount and p.txn_type) or (p.arrival and p.name)
+                    or (p.order and p.name and p.items and (p.name_strong or self.store.find(p.name))))
 
     def tap_confirm(self, yes: bool):
         if self.state != "confirming":
@@ -285,7 +301,9 @@ class Conversation:
         if self.p_customer_hint:
             base["customer"] = self.p_customer_hint
         if p.name and not p.name_strong and not self.store.find(p.name):
-            self.soft_miss = self.weak_name = True  # name is only a guess (first unknown word) and matches nobody
+            self.weak_name = True  # name is only a guess (first unknown word) and matches nobody
+            # a full phone number, or goods with no money, is already certain: the LLM must not turn it into credit
+            self.soft_miss = not (p.phone or (p.order and p.items and p.amount is None))
         if p.amount is not None and p.amount < 10 and not any(t.isdigit() for t in p.tokens):
             self.soft_miss = True  # "dhamki do" -> 'do' (give) is not ₹2
         if p.arrival:
@@ -297,6 +315,14 @@ class Conversation:
             return self._advance()
         if p.list_goods:
             return self._pending_list(None)  # "kiska saamaan baaki hai"
+        if p.recent:
+            return self._recent()
+        if p.add_customer:
+            self.p = {**base, "intent": "customer", "amount": None, "type": None, "items": ""}
+            if p.name and self.store.find(p.name):
+                self.state, self.p = "idle", {}
+                return self._r("customerExists", name=self.store.find(p.name)[0]["name"])
+            return self._advance()
         if p.collections:
             return self._collections(p.collections)
         if p.top_debtor:
@@ -314,6 +340,12 @@ class Conversation:
         if p.amount is None and p.name is None and p.txn_type is None:
             self.miss = True
             return self._r("notUnderstood")
+        if p.qty and p.amount and p.txn_type is None:  # "Arjun 5 kg sugar 200 rupees": order or credit? ask, never guess
+            items = " ".join(w for w in extract_items(p.tokens, p.name).split() if w != str(p.amount))
+            self.p = {**base, "intent": "txn", "items": items}
+            self.state = "askKind"
+            return self._r("orderOrCredit", chips=[UI[self.lang]["order"], UI[self.lang]["credit"]],
+                           name=p.name or "", items=items, amount=p.amount)
         if p.phone or p.txn_type is None:  # credit or payment unclear: let the LLM decide before asking
             self.soft_miss = True  # e.g. "Ramesh ka number 98…" or just a name: the LLM may know better
         self.p = {**base, "intent": "txn"}
@@ -353,7 +385,8 @@ class Conversation:
         return self._advance()
 
     def _on_askItems(self, p, text):
-        items = p.items or extract_items(p.tokens, None)
+        known = p.name and (p.name_strong or self.store.find(p.name))
+        items = (p.items if known else "") or extract_items(p.tokens, None)  # "5 kilo cheeni": cheeni is the item
         if not items:
             if p.no:
                 return self._reset("cancelled")
@@ -376,6 +409,31 @@ class Conversation:
             return self._choose_prompt()
         self._add_raw(text)
         return self.tap_choose(idx)
+
+    def _on_askKind(self, p, text):
+        tokens = set(p.tokens)
+        if p.order or tokens & {"order", "baad", "later", "बाद", "ऑर्डर"}:
+            return self.tap_kind(0, text)
+        if p.txn_type or tokens & {"credit", "udhaar", "उधार"}:
+            return self.tap_kind(1, text)
+        if p.no:
+            return self._reset("cancelled")
+        self.miss = True
+        return self._r("orderOrCredit", chips=[UI[self.lang]["order"], UI[self.lang]["credit"]],
+                       name=self.p["name"] or "", items=self.p["items"], amount=self.p["amount"])
+
+    def tap_kind(self, index, text=""):
+        """Answer to 'order or credit?': 0 = order to give later, 1 = credit now."""
+        if self.state != "askKind":
+            return self._r("notUnderstood")
+        if text:
+            self._add_raw(text)
+        if index == 0:
+            self.p.update(intent="order", amount=None, type=None)
+        else:
+            self.p.update(intent="txn", type="credit", items="")
+        self.state = "idle"
+        return self._advance()
 
     def _on_askPhone(self, p, text):
         if not p.phone:
@@ -427,6 +485,11 @@ class Conversation:
             if p["type"] is None:
                 self.state = "askType"
                 return self._r("askType", name=p["name"], amount=p["amount"])
+        if p["intent"] == "customer":
+            self.p["customer"] = None
+            self.state = "confirming"
+            return self._r("confirmAddCustomer", card={"name": p["name"], "note": p.get("note", ""), "type": "customer",
+                                                       "items": p["name"], "isNew": True}, name=p["name"])
         if p["intent"] == "phone" and not p.get("phone"):
             self.state = "askPhone"
             return self._r("askPhone", name=p["name"])
@@ -493,6 +556,9 @@ class Conversation:
         self.last_customer = c
         self.state, self.p = "idle", {}
         undo = {"at": self.clock(), "cid": c["id"], "name": c["name"], "created": created}
+        if p["intent"] == "customer":
+            self.last = {**undo, "kind": "customer"}
+            return self._r("customerAdded", saved=True, name=c["name"])
         if p["intent"] == "phone":
             self.last = {**undo, "kind": "phone", "old": c["phone"]}
             self.store.update_customer(c["id"], phone=p["phone"])
@@ -504,9 +570,10 @@ class Conversation:
             for o in p["orders"]:
                 self.store.set_order_status(o["id"], "arrived")
             self.last = {**undo, "kind": "arrival", "oids": [o["id"] for o in p["orders"]]}
+            done = [o["id"] for o in p["orders"]]
             if not c["phone"]:
-                return self._r("arrivedNoPhone", saved=True, name=c["name"])
-            return {**self._r("arrivedSaved", saved=True, name=c["name"]), "notify": c["id"]}
+                return {**self._r("arrivedNoPhone", saved=True, name=c["name"]), "arrived_orders": done}
+            return {**self._r("arrivedSaved", saved=True, name=c["name"]), "notify": c["id"], "arrived_orders": done}
         eid = self.store.add_entry(c["id"], p["type"], p["amount"], p["raw"], self.lang)
         self.last = {**undo, "kind": "entry", "eid": eid}
         return self._r("saved", saved=True, name=c["name"], balance=self.store.balance(c["id"]))
@@ -524,6 +591,14 @@ class Conversation:
             return self._r("balanceIs", name=matches[0]["name"], balance=matches[0]["balance"])
         lst = ", ".join(f'{c["note"] or c["name"]} {c["balance"]}' for c in matches)
         return self._r("balanceMulti", name=matches[0]["name"], list=lst)
+
+    def _recent(self):
+        names = {c["id"]: c["name"] for c in self.store.customers()}
+        rows = self.store.entries()[-3:][::-1]
+        if not rows:
+            return self._r("noEntriesYet")
+        word = {"credit": UI[self.lang]["credit"].lower(), "payment": UI[self.lang]["payment"].lower()}
+        return self._r("recentList", list="; ".join(f"{names.get(e['customer_id'], '?')} {word[e['type']]} {e['amount']}" for e in rows))
 
     def _collections(self, period):
         now = datetime.now(IST)

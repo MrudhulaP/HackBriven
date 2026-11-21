@@ -45,6 +45,7 @@ class Store:
     def __init__(self, db, crypto: Crypto):
         self.customers_c, self.entries_c, self.settings_c = db.customers, db.entries, db.settings
         self.orders_c = db.orders
+        self.notifications_c = db.notifications
         self.crypto = crypto
 
     # ---- customers

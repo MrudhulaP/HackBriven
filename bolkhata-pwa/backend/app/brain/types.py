@@ -15,6 +15,8 @@ class BrainAction(str, Enum):
     undo = "undo"
     queryCollections = "queryCollections"
     topDebtor = "topDebtor"
+    addCustomer = "addCustomer"
+    recentEntries = "recentEntries"
     chooseCustomer = "chooseCustomer"
     addOrder = "addOrder"
     markArrived = "markArrived"

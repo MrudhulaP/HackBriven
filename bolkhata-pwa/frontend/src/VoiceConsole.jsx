@@ -10,8 +10,6 @@ const EXAMPLES = {
   te: ['లక్ష్మి 200 అప్పు తీసుకున్నారు', 'లక్ష్మి బాకీ ఎంత', 'మొత్తం బాకీ ఎంత'],
   ta: ['லக்ஷ்மி 200 கடன் வாங்கினார்', 'லக்ஷ்மி நிலுவை எவ்வளவு', 'மொத்த நிலுவை எவ்வளவு'],
 }
-const ENGINE_SHORT = { live: 'Live', rest: 'REST', browser: 'Web' }
-const ENGINE_NAMES = { live: 'Gnani Live', rest: 'Gnani REST', browser: 'Browser speech' }
 
 /** idle | listening | processing | speaking | error | off — one visible state at a time. */
 export function voiceState(conv, started) {
@@ -109,8 +107,41 @@ function Rings({ voice, state }) {
   return <canvas ref={ref} className="rings" aria-hidden="true" />
 }
 
-export function VoiceConsole({ t, conv, voice, started, onStart, onMic, onSubmit, lang, uiLang, engine, onEngine,
-  bargeIn, onBarge, brainOn, onBrain, llm }) {
+/** What happened to the customer message after an order arrived — never claims a send that didn't happen. */
+export function ArrivalNote({ t, note, uiLang, onOpenCustomer, dark }) {
+  const [state, setState] = useState(note)
+  useEffect(() => setState(note), [note])
+  if (!state) return null
+  const msg = {
+    sent: 'notifSent', already_sent: 'notifAlready', no_phone: 'notifNoPhone', failed: 'notifFailed', not_configured: 'notifNotConfigured',
+  }[state.status]
+  async function whatsapp() {
+    try {
+      const { url } = await api(`/api/customers/${state.customer_id}/arrived-message?lang=${uiLang}`)
+      window.open(url, '_blank', 'noopener') // opens WhatsApp with the message ready; the shopkeeper presses send
+    } catch { /* no phone: the note already says so */ }
+  }
+  async function retry() {
+    try {
+      const r = await api(`/api/orders/${state.order_ids[0]}/notify?lang=${uiLang}`, { method: 'POST' })
+      setState(r.notification)
+    } catch { /* stays failed */ }
+  }
+  return (
+    <div className={`arrival-note ${dark ? 'on-dark' : ''} is-${state.status}`} role="status">
+      <p>{t(msg).replace('{name}', state.name)}{state.reason ? ` (${state.reason})` : ''}</p>
+      <div className="arrival-actions">
+        {state.status === 'no_phone' && onOpenCustomer && (
+          <button className="btn solid" onClick={() => onOpenCustomer(state.customer_id)}><Icon name="phone" /> {t('addPhone')}</button>
+        )}
+        {state.status === 'not_configured' && <button className="btn solid" onClick={whatsapp}><Icon name="chat" /> {t('notifyCustomer')}</button>}
+        {state.status === 'failed' && <button className="btn solid" onClick={retry}>{t('retrySend')}</button>}
+      </div>
+    </div>
+  )
+}
+
+export function VoiceConsole({ t, conv, voice, started, onStart, onMic, onSubmit, lang, uiLang, diagnostics, onOpenCustomer }) {
   const [text, setText] = useState('')
   const [editing, setEditing] = useState(false)
   const [amount, setAmount] = useState('')
@@ -141,13 +172,6 @@ export function VoiceConsole({ t, conv, voice, started, onStart, onMic, onSubmit
     setText('')
   }
 
-  async function notify(cid) {
-    try {
-      const { url } = await api(`/api/customers/${cid}/arrived-message?lang=${uiLang}`)
-      window.open(url, '_blank', 'noopener') // WhatsApp opens with the text ready; the shopkeeper presses send
-    } catch { /* the reply already says how to add a number */ }
-  }
-
   const status = {
     off: t('tapToStart'), idle: t('tapToSpeak'), listening: t('tapToStop'), processing: t('processing'),
     speaking: r?.text ? '' : t('tapToSpeak'), error: t('failed'),
@@ -158,7 +182,7 @@ export function VoiceConsole({ t, conv, voice, started, onStart, onMic, onSubmit
     <section className={`console is-${state}`} aria-label="Voice assistant">
       <div className="console-meta">
         <span className="lang-pill" title={t('detected')}>{lang === 'auto' ? `${t('auto')}: ${detected}` : detected}</span>
-        {conv.latency.source && (
+        {diagnostics && conv.latency.source && (
           <span className="latency">
             {conv.latency.source === 'rules' ? 'rules' : `${conv.latency.source} ${conv.latency.brain} ms`}
             {conv.latency.reply != null && ` · ${conv.latency.reply} ms`}
@@ -186,6 +210,11 @@ export function VoiceConsole({ t, conv, voice, started, onStart, onMic, onSubmit
         )}
         {(conv.notice || conv.offline) && <p className="console-notice" role="status">{conv.offline ? t('offline') : conv.notice}</p>}
 
+        {r?.state === 'askKind' && (
+          <div className="choices">
+            {r.options.map((o, i) => <button key={i} className="choice" onClick={() => voice.tap('kind', { index: i })}>{o}</button>)}
+          </div>
+        )}
         {r?.state === 'chooseCustomer' && (
           <div className="choices">
             {r.options.map((o, i) => <button key={i} className="choice" onClick={() => voice.tap('choose', { index: i })}>{o}</button>)}
@@ -222,10 +251,10 @@ export function VoiceConsole({ t, conv, voice, started, onStart, onMic, onSubmit
           </div>
         )}
 
-        {(r?.notify || undoLeft > 0) && (
+        {r?.notification && <ArrivalNote t={t} note={r.notification} uiLang={uiLang} onOpenCustomer={onOpenCustomer} dark />}
+        {undoLeft > 0 && (
           <div className="after-save">
-            {r?.notify && <button className="btn solid" onClick={() => notify(r.notify)}><Icon name="chat" /> {t('notifyCustomer')}</button>}
-            {undoLeft > 0 && <button className="btn ghost" onClick={() => { setUndoLeft(0); voice.tap('undo') }}>{t('undo')} ({undoLeft})</button>}
+            <button className="btn ghost" onClick={() => { setUndoLeft(0); voice.tap('undo') }}>{t('undo')} ({undoLeft})</button>
           </div>
         )}
       </div>
@@ -246,11 +275,6 @@ export function VoiceConsole({ t, conv, voice, started, onStart, onMic, onSubmit
         <button className="btn solid" aria-label={t('send')}><Icon name="send" /></button>
       </form>
 
-      <div className="console-tools">
-        <button className="tool" onClick={onEngine} title={`Voice engine: ${ENGINE_NAMES[engine]}`}>{ENGINE_SHORT[engine]}</button>
-        <button className={`tool ${bargeIn ? 'on' : ''}`} aria-pressed={bargeIn} onClick={onBarge} title={t('bargeIn')}>{t('bargeIn')}</button>
-        {llm && <button className={`tool ${brainOn ? 'on' : ''}`} aria-pressed={brainOn} onClick={onBrain} title={t('brain')}>{t('brain')}</button>}
-      </div>
     </section>
   )
 }

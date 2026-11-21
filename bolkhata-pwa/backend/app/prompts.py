@@ -332,6 +332,81 @@ _TRY = {"en": "Try saying or tap:", "hi": "ऐसे बोलिए या द�
 for _lang, _s in _TRY.items():
     UI[_lang]["trySaying"] = _s
 
+# Order-or-credit clarification and arrival notifications. kn/te/ta: // VERIFY by native speaker
+_KIND = {
+    "en": {"orderOrCredit": "{name}: should I note {items} as an order to give later, or {amount} rupees as credit now?"},
+    "hi": {"orderOrCredit": "{name}: {items} बाद में देने का ऑर्डर लिखूँ, या अभी {amount} रुपये उधार?"},
+    "kn": {"orderOrCredit": "{name}: {items} ನಂತರ ಕೊಡುವ ಆರ್ಡರ್ ಆಗಿ ಬರೆಯಲೇ, ಅಥವಾ ಈಗ {amount} ರೂಪಾಯಿ ಸಾಲವೇ?"},
+    "te": {"orderOrCredit": "{name}: {items} తర్వాత ఇచ్చే ఆర్డర్‌గా రాయనా, లేక ఇప్పుడు {amount} రూపాయలు అప్పుగానా?"},
+    "ta": {"orderOrCredit": "{name}: {items} பிறகு கொடுக்கும் ஆர்டராக எழுதவா, அல்லது இப்போது {amount} ரூபாய் கடனாகவா?"},
+}
+for _lang, _extra in _KIND.items():
+    PROMPTS[_lang].update(_extra)
+
+_MORE_EN_HI = {  # kn/te/ta reuse the English text for these (only English and Hindi are in scope)
+    "en": {"recentList": "Last entries: {list}.", "noEntriesYet": "No entries yet.",
+           "confirmAddCustomer": "Add {name} as a new customer?", "customerAdded": "{name} is added as a customer.",
+           "customerExists": "{name} is already a customer."},
+    "hi": {"recentList": "हाल की एंट्री: {list}।", "noEntriesYet": "अभी कोई एंट्री नहीं है।",
+           "confirmAddCustomer": "{name} को नए ग्राहक के रूप में जोड़ूँ?", "customerAdded": "{name} ग्राहक के रूप में जुड़ गए।",
+           "customerExists": "{name} पहले से ग्राहक हैं।"},
+}
+for _lang in PROMPTS:
+    PROMPTS[_lang].update(_MORE_EN_HI.get(_lang, _MORE_EN_HI["en"]))
+
+NOTIFY_UI = {
+    "en": {"notifSent": "Order marked as arrived. {name} was sent a message.",
+           "notifNoPhone": "Order marked as arrived, but {name}'s phone number isn't saved. Add it to send arrival messages.",
+           "notifFailed": "Order marked as arrived, but the message to {name} could not be sent.",
+           "notifNotConfigured": "Order marked as arrived. Automatic messages aren't set up, so send it on WhatsApp yourself.",
+           "notifAlready": "Order marked as arrived. {name} was already sent a message for this order.",
+           "addPhone": "Add phone number", "retrySend": "Try sending again"},
+    "hi": {"notifSent": "ऑर्डर 'आ गया' मार्क हुआ। {name} को संदेश भेजा गया।",
+           "notifNoPhone": "ऑर्डर 'आ गया' मार्क हुआ, पर {name} का फ़ोन नंबर सेव नहीं है। संदेश के लिए नंबर जोड़ें।",
+           "notifFailed": "ऑर्डर 'आ गया' मार्क हुआ, पर {name} को संदेश नहीं जा सका।",
+           "notifNotConfigured": "ऑर्डर 'आ गया' मार्क हुआ। अपने-आप संदेश भेजना चालू नहीं है, WhatsApp पर खुद भेजिए।",
+           "notifAlready": "ऑर्डर 'आ गया' मार्क हुआ। इस ऑर्डर का संदेश {name} को पहले ही जा चुका है।",
+           "addPhone": "फ़ोन नंबर जोड़ें", "retrySend": "फिर से भेजें"},
+    "kn": {"notifSent": "ಆರ್ಡರ್ ಬಂದಿದೆ ಎಂದು ಗುರುತಿಸಲಾಗಿದೆ. {name} ಅವರಿಗೆ ಸಂದೇಶ ಕಳುಹಿಸಲಾಗಿದೆ.",
+           "notifNoPhone": "ಆರ್ಡರ್ ಬಂದಿದೆ ಎಂದು ಗುರುತಿಸಲಾಗಿದೆ, ಆದರೆ {name} ಅವರ ಫೋನ್ ನಂಬರ್ ಇಲ್ಲ. ಸಂದೇಶಕ್ಕೆ ನಂಬರ್ ಸೇರಿಸಿ.",
+           "notifFailed": "ಆರ್ಡರ್ ಬಂದಿದೆ ಎಂದು ಗುರುತಿಸಲಾಗಿದೆ, ಆದರೆ {name} ಅವರಿಗೆ ಸಂದೇಶ ಹೋಗಲಿಲ್ಲ.",
+           "notifNotConfigured": "ಆರ್ಡರ್ ಬಂದಿದೆ ಎಂದು ಗುರುತಿಸಲಾಗಿದೆ. ಸ್ವಯಂ ಸಂದೇಶ ಸೆಟ್ ಆಗಿಲ್ಲ, WhatsApp ನಲ್ಲಿ ನೀವೇ ಕಳುಹಿಸಿ.",
+           "notifAlready": "ಆರ್ಡರ್ ಬಂದಿದೆ. ಈ ಆರ್ಡರ್‌ಗೆ {name} ಅವರಿಗೆ ಈಗಾಗಲೇ ಸಂದೇಶ ಹೋಗಿದೆ.",
+           "addPhone": "ಫೋನ್ ನಂಬರ್ ಸೇರಿಸಿ", "retrySend": "ಮತ್ತೆ ಕಳುಹಿಸಿ"},
+    "te": {"notifSent": "ఆర్డర్ వచ్చిందని గుర్తించాం. {name} కి సందేశం పంపాం.",
+           "notifNoPhone": "ఆర్డర్ వచ్చిందని గుర్తించాం, కానీ {name} ఫోన్ నంబర్ లేదు. సందేశానికి నంబర్ చేర్చండి.",
+           "notifFailed": "ఆర్డర్ వచ్చిందని గుర్తించాం, కానీ {name} కి సందేశం వెళ్ళలేదు.",
+           "notifNotConfigured": "ఆర్డర్ వచ్చిందని గుర్తించాం. ఆటో సందేశాలు సెట్ కాలేదు, WhatsApp లో మీరే పంపండి.",
+           "notifAlready": "ఆర్డర్ వచ్చింది. ఈ ఆర్డర్‌కి {name} కి ఇప్పటికే సందేశం వెళ్ళింది.",
+           "addPhone": "ఫోన్ నంబర్ చేర్చండి", "retrySend": "మళ్ళీ పంపండి"},
+    "ta": {"notifSent": "ஆர்டர் வந்ததாகக் குறிக்கப்பட்டது. {name} க்கு செய்தி அனுப்பப்பட்டது.",
+           "notifNoPhone": "ஆர்டர் வந்ததாகக் குறிக்கப்பட்டது, ஆனால் {name} இன் தொலைபேசி எண் இல்லை. செய்திக்கு எண்ணைச் சேர்க்கவும்.",
+           "notifFailed": "ஆர்டர் வந்ததாகக் குறிக்கப்பட்டது, ஆனால் {name} க்கு செய்தி அனுப்ப முடியவில்லை.",
+           "notifNotConfigured": "ஆர்டர் வந்ததாகக் குறிக்கப்பட்டது. தானியங்கி செய்திகள் அமைக்கப்படவில்லை, WhatsApp இல் நீங்களே அனுப்புங்கள்.",
+           "notifAlready": "ஆர்டர் வந்தது. இந்த ஆர்டருக்கு {name} க்கு ஏற்கனவே செய்தி அனுப்பப்பட்டது.",
+           "addPhone": "தொலைபேசி எண் சேர்", "retrySend": "மீண்டும் அனுப்பு"},
+}
+_ADV = {
+    "en": {"voiceAdvanced": "Voice engine (advanced)", "voiceAdvancedHelp": "Technical switches. The defaults work for most shops.",
+           "engineLabel": "Speech engine", "bargeInHelp": "Lets you interrupt the reply by speaking. Use with earphones.",
+           "brainHelp": "Uses an AI model only for messy sentences the rules can't read.", "showDiagnostics": "Show response times"},
+    "hi": {"voiceAdvanced": "आवाज़ इंजन (उन्नत)", "voiceAdvancedHelp": "तकनीकी स्विच। ज़्यादातर दुकानों के लिए डिफ़ॉल्ट ठीक है।",
+           "engineLabel": "स्पीच इंजन", "bargeInHelp": "जवाब के बीच बोलकर रोक सकते हैं। ईयरफ़ोन के साथ इस्तेमाल करें।",
+           "brainHelp": "AI मॉडल सिर्फ़ उलझे वाक्यों के लिए इस्तेमाल होता है।", "showDiagnostics": "जवाब का समय दिखाएँ"},
+    "kn": {"voiceAdvanced": "ಧ್ವನಿ ಎಂಜಿನ್ (ಸುಧಾರಿತ)", "voiceAdvancedHelp": "ತಾಂತ್ರಿಕ ಸ್ವಿಚ್‌ಗಳು. ಹೆಚ್ಚಿನ ಅಂಗಡಿಗಳಿಗೆ ಡೀಫಾಲ್ಟ್ ಸಾಕು.",
+           "engineLabel": "ಸ್ಪೀಚ್ ಎಂಜಿನ್", "bargeInHelp": "ಉತ್ತರದ ಮಧ್ಯೆ ಮಾತನಾಡಿ ನಿಲ್ಲಿಸಬಹುದು. ಇಯರ್‌ಫೋನ್ ಜೊತೆ ಬಳಸಿ.",
+           "brainHelp": "AI ಮಾದರಿಯನ್ನು ಗೊಂದಲದ ವಾಕ್ಯಗಳಿಗೆ ಮಾತ್ರ ಬಳಸುತ್ತದೆ.", "showDiagnostics": "ಉತ್ತರದ ಸಮಯ ತೋರಿಸಿ"},
+    "te": {"voiceAdvanced": "వాయిస్ ఇంజిన్ (అధునాతన)", "voiceAdvancedHelp": "సాంకేతిక స్విచ్‌లు. చాలా షాపులకు డిఫాల్ట్ సరిపోతుంది.",
+           "engineLabel": "స్పీచ్ ఇంజిన్", "bargeInHelp": "సమాధానం మధ్యలో మాట్లాడి ఆపవచ్చు. ఇయర్‌ఫోన్‌తో వాడండి.",
+           "brainHelp": "AI మోడల్‌ను గందరగోళ వాక్యాలకు మాత్రమే వాడుతుంది.", "showDiagnostics": "సమాధాన సమయం చూపించు"},
+    "ta": {"voiceAdvanced": "குரல் இயந்திரம் (மேம்பட்டது)", "voiceAdvancedHelp": "தொழில்நுட்ப சுவிட்சுகள். பெரும்பாலான கடைகளுக்கு இயல்பு போதும்.",
+           "engineLabel": "பேச்சு இயந்திரம்", "bargeInHelp": "பதிலின் நடுவே பேசி நிறுத்தலாம். இயர்போனுடன் பயன்படுத்தவும்.",
+           "brainHelp": "AI மாதிரி குழப்பமான வாக்கியங்களுக்கு மட்டும் பயன்படும்.", "showDiagnostics": "பதில் நேரத்தைக் காட்டு"},
+}
+for _lang in UI:
+    UI[_lang].update(NOTIFY_UI[_lang])
+    UI[_lang].update(_ADV[_lang])
+
 
 
 def say(lang: str, key: str, **kw) -> str:

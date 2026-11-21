@@ -127,6 +127,30 @@ Seed data (synthetic): Ramesh (Gandhi Nagar) ₹450, Ramesh (Station Road) ₹20
 - **English by default** for the UI, the greeting and replies. Auto still switches to the language spoken, and a chosen language is remembered on the device.
 - **Noisy shop mode** (Settings) makes Gnani's own voice detection stricter (`x-vad-threshold` 0.85, `x-min-speech-ms` 250). Settings also shows which noise features the browser actually applied (noise suppression, echo cancellation, auto gain, voice isolation).
 
+## Numbers, orders and arrival messages
+
+- **Numbers:** every Hindi number word 1–99, hundred/thousand/lakh/crore, dedh/dhai/saade/paune, Kannada/Telugu/Tamil forms, and digits including Indian commas. A 10-digit number in a money sentence is an amount; in a contact sentence ("number", "phone", "save") it is a phone. Phone numbers read out digit by digit are joined. Amounts above ₹10,000 crore are treated as mishearings and asked again. Money is whole rupees (integers).
+- **Quantities are never money:** "5 kg", "2 packet" and "5 customers" are quantities or counts. "Arjun needs 5 kg of sugar" is an order. If a sentence has both a quantity and an amount but no verb, the app asks: order to give later, or credit now?
+- **Balances** are always computed from the entries (credits − payments). No stored balance can drift, and there's no credit limit in the app.
+- **Arrival messages:** marking an order arrived (by voice or the Arrived button) also records a customer message attempt, one per order, so repeated clicks never send twice. Each attempt has its own status: `sent`, `failed` (retry button), `no_phone` (button to add the number), or `not_configured`. Automatic sending needs a provider (WhatsApp Business Cloud API or an SMS gateway: a business account, a sender number and, for WhatsApp, an approved template). Until `MESSAGING_PROVIDER` is implemented and configured, the app says so honestly and offers the one-tap WhatsApp link. The history is at `GET /api/notifications`.
+- **Technical switches** (speech engine, barge-in, LLM brain, response times) live in Settings under Voice engine (advanced). They are not shown on the main screen.
+- **Chosen language wins:** a selected language fixes replies and the UI, and recognition uses that language plus English (or Hindi when English is chosen). Auto follows the spoken language. A stray spoken "yes"/"no" with nothing pending is ignored instead of answered with "Sorry".
+
+## English and Hindi reliability (measured)
+
+- **Phone numbers always win over amounts.** 10 digits starting 6–9 are a phone in any grouping ("999 9999999", "99999-99999", "+91 …", Devanagari digits). In a sentence about a number or phone, a number read out in words is joined too: "triple nine triple nine double nine double nine", "ninety eight seven six …", "नौ सौ निन्यानवे …", "डबल नौ …". If the speech engine drops digits, the app asks for the number instead of saving a wrong one.
+- **Spoken amounts:** "two fifty" = 250 and "two five zero" = 250 (English only; Hindi "do pachaas" stays 50).
+- **Test suite:** `tests/test_en_hi_suite.py` holds 71 typed cases (English 31, Hindi 21, Hinglish 18), 30 number cases and a 50-turn mixed-language session. Run `pytest` (all mocked, no network).
+- **Real-voice benchmark:** `bench/voice_bench.py` speaks every case with Gnani TTS, transcribes it with Gnani STT and runs the full rules + LLM pipeline. Result on 22 Nov 2026:
+
+| | cases | WER | intent | meaning | amounts | median STT |
+|---|---|---|---|---|---|---|
+| English | 31 | 31.5% | 31/31 | 31/31 | 10/10 | 215 ms |
+| Hindi | 21 | 24.8% | 20/21 | 20/21 | 8/8 | 193 ms |
+| Hinglish | 18 | 108.8%* | 16/18 | 16/18 | 6/7 | 194 ms |
+
+\* Gnani writes Hinglish in Devanagari, so word error rate against a Latin reference is meaningless; intent and meaning are the useful numbers. WER is also inflated by number formatting ("250" vs "two five zero"). The remaining misses are speech-engine mishearings ("dedh sau" heard as "भैंसों"; phone digits dropped); in each one the app asks again instead of saving wrong data. Voices are synthetic: real accents and shop noise are untested.
+
 ## Each command stands on its own
 
 - **New command, fresh context.** Any new command (a phone number, a question, a full credit/payment, an order) drops the unfinished one, so the app never answers it with the previous question. Only a real follow-up uses earlier context: "He paid 200" right after Lakshmi means Lakshmi.
