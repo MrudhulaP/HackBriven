@@ -33,6 +33,10 @@ class Crypto:
 _CASE_SUFFIXES = ("avarige", "ukku", "uku", "ige", "nige", "kke", "ge", "ke", "ki", "ku", "ni", "na")
 
 
+def _aware(d):
+    return d if d.tzinfo else d.replace(tzinfo=timezone.utc)
+
+
 def now():
     return datetime.now(timezone.utc)
 
@@ -65,7 +69,7 @@ class Store:
         c = self.customers_c.find_one({"id": cid}, {"_id": 0})
         return c and self._customer_out(c, self.balances(), self._last_visits())
 
-    def add_customer(self, name, note="", phone=None, demo=False):
+    def add_customer(self, name, note="", phone=None, demo=False):  # phone stays a string
         c = {"id": str(uuid.uuid4()), "name": name, "name_roman": romanize(name), "note": note,
              "phone": self.crypto.enc(phone), "demo": demo, "created_at": now()}
         self.customers_c.insert_one(dict(c))
@@ -123,6 +127,14 @@ class Store:
 
     def balance(self, cid):
         return self.balances().get(cid, 0)
+
+    def customer_with_phone(self, phone):
+        return next((c for c in self.customers() if c["phone"] == phone), None)
+
+    def payments_since(self, since):
+        """Sum of payments received since a datetime (one source of truth: the entries)."""
+        return sum(e["amount"] for e in self.entries_c.find({"type": "payment"}, {"_id": 0, "amount": 1, "created_at": 1})
+                   if _aware(e["created_at"]) >= since)
 
     # ---- undo support (removes only what one confirmed action created)
     def delete_entry(self, eid):

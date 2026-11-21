@@ -12,6 +12,8 @@ export class VoiceClient {
     this.speaking = false
     this.sources = []
     this.t0 = null
+    this.seq = 0
+    this.latestReq = null // only the reply to this request is shown
   }
 
   // ---------- socket
@@ -42,23 +44,31 @@ export class VoiceClient {
     this.sendJson({ type: 'config', ...cfg })
   }
 
+  newReq() {
+    this.latestReq = `c${++this.seq}`
+    return this.latestReq
+  }
+
   sendText(text) {
     this.t0 = performance.now()
-    this.sendJson({ type: 'text', text })
+    this.sendJson({ type: 'text', text, id: this.newReq() })
   }
 
   tap(action, extra = {}) {
     this.t0 = performance.now()
-    this.sendJson({ type: 'tap', action, ...extra })
+    this.sendJson({ type: 'tap', action, ...extra, id: this.newReq() })
   }
 
   onJson(m) {
     switch (m.type) {
       case 'transcript':
         this.t0 = performance.now()
+        if (m.req?.startsWith('v')) this.latestReq = m.req // a spoken sentence starts a new request
         break
       case 'reply':
-        this.replyLang = m.lang
+      case 'ignored':
+        if (m.req && m.req !== this.latestReq) return // reply to an older request: never show it
+        if (m.type === 'reply') this.replyLang = m.lang
         break
       case 'speech_start':
         if (this.bargeIn) this.stopPlayback()
@@ -140,6 +150,8 @@ export class VoiceClient {
   reportReply(playAt) {
     if (this.t0 != null) this.onEvent({ type: 'latency', reply: Math.round(playAt - this.t0) })
     this.t0 = null
+    this.seq = 0
+    this.latestReq = null // only the reply to this request is shown
   }
 
   stopPlayback() {

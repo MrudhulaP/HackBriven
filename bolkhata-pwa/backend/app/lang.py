@@ -89,7 +89,8 @@ ROMAN_MARKERS = {
         naya grahak saamaan chahiye deni dena batao karo""".split()),
     "en": set("""took take taken gave give given paid pay payment credit balance how much what is the of owe owes
         does yes no on for to from and today yesterday first second third cancel save okay received has his her
-        hundred thousand rupees who did order orders needs need it kg arrived new pending tell show""".split()),
+        hundred thousand rupees who did order orders needs need it kg arrived new pending tell show number phone
+        mobile as add update money collect collected collections week most me my""".split()),
     "kn": set("kottaru kotta kottidare kodi tagondru tegedukondaru saala eshtu baaki houdu illa modala".split()),
     "te": set("icharu ichadu ichindi theesukunnaru appu entha avunu kaadu modati".split()),
     "ta": set("koduthaar koduthan vaanginaar kadan evvalavu aama illai mudhal".split()),

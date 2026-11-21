@@ -192,6 +192,8 @@ class VoiceSession:
         self.conv = Conversation(store, "auto", "hi" if s["default_language"] == "auto" else s["default_language"])
         self.engine, self.barge_in = "live", False
         self.lock = asyncio.Lock()
+        self.turn_lock = asyncio.Lock()  # one turn at a time: a reply can never mix two requests
+        self.voice_seq = 0
         self.stt = None
         self.stt_reader = None
         self.tts_task = None
@@ -254,7 +256,8 @@ class VoiceSession:
             if self.stt:
                 asyncio.get_running_loop().call_later(2.0, lambda: asyncio.ensure_future(self.close_stt()))
         elif t == "text":
-            await self.on_transcript(str(m.get("text", ""))[:500], None, None, speak=m.get("speak", True), spoken=False)
+            await self.on_transcript(str(m.get("text", ""))[:500], None, None, speak=m.get("speak", True), spoken=False,
+                                     req=str(m.get("id") or ""))
         elif t == "evening":  # spoken end-of-day reminder; does not touch the dialogue state
             text = evening_summary(self.store, self.conv.lang)["text"]
             if text:
@@ -262,12 +265,13 @@ class VoiceSession:
                                   "state": self.conv.state, "card": None, "options": [], "saved": False, "evening": True})
         elif t == "tap":
             a = m.get("action")
-            r = (self.conv.tap_confirm(True) if a == "save" else self.conv.tap_confirm(False) if a == "cancel"
-                 else self.conv.tap_choose(int(m.get("index", -1))) if a == "choose"
-                 else self.conv.tap_amount(int(m.get("amount", 0))) if a == "amount"
-                 else self.conv.undo() if a == "undo" else None)
-            if r:
-                await self.reply(r)
+            async with self.turn_lock:
+                r = (self.conv.tap_confirm(True) if a == "save" else self.conv.tap_confirm(False) if a == "cancel"
+                     else self.conv.tap_choose(int(m.get("index", -1))) if a == "choose"
+                     else self.conv.tap_amount(int(m.get("amount", 0))) if a == "amount"
+                     else self.conv.undo() if a == "undo" else None)
+                if r:
+                    await self.reply({**r, "req": str(m.get("id") or "")})
 
     async def on_audio(self, data: bytes):
         if self.engine == "live" and self.stt:
@@ -345,14 +349,22 @@ class VoiceSession:
             await self.on_transcript(r["transcript"].strip(), r.get("detected_language_code"), ms)
 
     # ---------- dialogue + TTS
-    async def on_transcript(self, text, detected, stt_ms, speak=True, spoken=True):
+    async def on_transcript(self, text, detected, stt_ms, speak=True, spoken=True, req=""):
+        """One request: its transcript and its reply carry the same request id, so the screen never shows
+        an older reply under a newer sentence."""
         if not text:
             return
-        await self.send({"type": "transcript", "text": text, "detected": detected, "stt_ms": stt_ms})
-        r, source, ms = await self.conv.handle_smart(text, detected, self.brain if self.brain_on else None, spoken)
-        if r is None:
-            return  # junk ('hmm', noise): ignored, no reply
-        await self.reply({**r, "source": source, "brain_ms": ms}, speak)
+        if not req:
+            self.voice_seq += 1
+            req = f"v{self.voice_seq}"
+        await self.stop_tts()  # a new sentence silences the previous reply
+        await self.send({"type": "transcript", "text": text, "detected": detected, "stt_ms": stt_ms, "req": req})
+        async with self.turn_lock:
+            r, source, ms = await self.conv.handle_smart(text, detected, self.brain if self.brain_on else None, spoken)
+            if r is None:
+                await self.send({"type": "ignored", "req": req})  # junk ('hmm', noise): no reply
+                return
+            await self.reply({**r, "source": source, "brain_ms": ms, "req": req}, speak)
 
     async def reply(self, r, speak=True):
         await self.send(r)
@@ -367,9 +379,10 @@ class VoiceSession:
     async def stop_tts(self):
         task, self.tts_task = self.tts_task, None
         if task and not task.done():
-            task.cancel()  # closes the Gnani TTS socket (no cancel message exists)
-            with contextlib.suppress(BaseException):
-                await task
+            # Cancel closes the Gnani TTS socket (no cancel message exists). Don't wait for the close handshake:
+            # a new request must never be held up by the old reply's audio.
+            task.cancel()
+            task.add_done_callback(lambda t: t.cancelled() or t.exception())
             await self.send({"type": "tts_end", "interrupted": True})
 
     async def speak(self, text, lang):

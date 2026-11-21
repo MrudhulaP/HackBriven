@@ -48,7 +48,8 @@ def validate(r: BrainResult, transcript: str, n_options: int, find_customers, la
     if customer and not find_customers(customer) and not said_it:  # "Suresh" vs spoken சுரேஷ் (romanizes as 'churesh')
         customer = None  # neither an existing customer nor a name that was actually said
     choice = r.choiceIndex if r.choiceIndex is not None and 0 <= r.choiceIndex < n_options else None
-    entry = r.entryType or {BrainAction.addCredit: "credit", BrainAction.recordPayment: "payment"}.get(r.action)
+    # the action decides credit vs payment; a contradicting entryType label is ignored
+    entry = {BrainAction.addCredit: "credit", BrainAction.recordPayment: "payment"}.get(r.action, r.entryType)
     item = r.item if r.item and set(map(name_key, tokenize(r.item))) & spoken_keys else None
     qty = r.quantity if r.quantity and (not re.search(r"\d", r.quantity) or
                                          set(amounts(tokenize(r.quantity))) <= spoken_numbers) else None

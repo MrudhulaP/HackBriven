@@ -97,3 +97,4 @@ th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line
 .bar h1 { font-size: 19px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bar .chip { padding: 0 10px; font-size: 14px; white-space: nowrap; }
 .bar select { max-width: 92px; font-size: 15px; }
+.reply.thinking { color: var(--muted); font-style: italic; border-style: dashed; }

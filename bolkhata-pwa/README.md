@@ -109,6 +109,13 @@ Seed data (synthetic): Ramesh (Gandhi Nagar) ₹450, Ramesh (Station Road) ₹20
 - **Evening check.** Once a day after the shop closing time (Settings, default 20:00), Home shows a banner and speaks a list of customers with no phone number and all pending orders. Tapping a name opens that customer's page to add the phone. It appears only while the app is open; there are no push notifications.
 - **Noise.** The browser's noise suppression, echo cancellation and auto-gain are on, and the app sends silence while it speaks. Not yet tested in a real noisy shop.
 
+## Each command stands on its own
+
+- **New command, fresh context.** Any new command (a phone number, a question, a full credit/payment, an order) drops the unfinished one, so the app never answers it with the previous question. Only a real follow-up uses earlier context: "He paid 200" right after Lakshmi means Lakshmi.
+- **Request ids.** Every typed or spoken request carries an id that its reply echoes. The server handles one turn at a time, and the screen shows only the reply to the latest request. The old reply is cleared on submit, "Working on it…" shows meanwhile, and a new sentence stops the old reply's audio straight away.
+- **Contacts.** "Save Arjun's number as 99999 99999", "Add Priya's number …", "Arjun ka mobile number … save karo", "Update Ramesh's phone number to …", and the same in Kannada/Telugu/Tamil. A new name becomes a new customer on confirm. The number is read back in two groups. If a number already belongs to someone else, the app says so before saving. A missing number or name is asked for. Phone numbers are stored as text and are never an amount.
+- **Quick questions answered from the ledger:** "Show today's collections", "How much did I collect this week?", "Who owes me the most?"
+
 ## Undo
 
 After any save (credit, payment, new customer, phone number, order, arrival), an **↩ Undo** button shows for 10 seconds. Saying "undo", "galti ho gayi", "wapas lo", "ತಪ್ಪಾಯ್ತು", "తప్పు అయింది" or "தப்பா போச்சு" does the same. It reverts only that last action. After 10 seconds nothing changes, and the app says so.

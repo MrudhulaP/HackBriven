@@ -108,7 +108,7 @@ def _tts_request(text: str, lang: str, container: str) -> dict:
 
 async def tts_stream(key: str, text: str, lang: str):
     """Yields raw PCM16 chunks at TTS_RATE as they arrive. Closing the generator closes the socket (= cancel)."""
-    async with websockets.connect(TTS_WS, open_timeout=6, max_size=None,
+    async with websockets.connect(TTS_WS, open_timeout=6, close_timeout=1, max_size=None,
                                   additional_headers={"X-API-Key-ID": key}) as ws:
         await ws.send(json.dumps(_tts_request(text, lang, "raw")))
         async for raw in ws:

@@ -130,7 +130,7 @@ def test_phone_digits_never_become_amount(store):
     b, _, _ = brain(J(action="setPhone", customer="Lakshmi", phone="9876543210", amount=9876543210))
     c = Conversation(store)
     r, source, _ = run(c.handle_smart("Lakshmi ka number 98765 43210 hai", brain=b))
-    assert source == "groq" and r["key"] == "confirmPhone" and r["card"]["phone"] == "9876543210"
+    assert source == "rules" and r["key"] == "confirmPhone" and r["card"]["phone"] == "98765 43210"  # rules now
     assert "amount" not in r["card"]
     r, _, _ = run(c.handle_smart("haan", brain=b))
     assert r["key"] == "phoneSaved" and store.find("Lakshmi")[0]["phone"] == "9876543210"
@@ -139,7 +139,7 @@ def test_phone_digits_never_become_amount(store):
 
 def test_phone_rule_without_brain(store):
     r = Conversation(store).handle("Lakshmi ka number 9876543210 hai")
-    assert r["key"] == "askAmount"  # not a 9,876,543,210 rupee entry
+    assert r["key"] == "confirmPhone" and "amount" not in r["card"]  # a contact save, never a ₹9,876,543,210 entry
 
 
 def test_smalltalk_and_help_replies(store):

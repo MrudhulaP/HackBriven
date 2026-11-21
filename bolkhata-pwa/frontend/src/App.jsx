@@ -61,12 +61,15 @@ export default function App() {
   function onEvent(m) {
     switch (m.type) {
       case 'transcript':
-        patch({ transcript: m.text })
-        setConv((c) => ({ ...c, latency: { stt: m.stt_ms } }))
+        // new request: clear the previous reply so it can't be mistaken for this one
+        setConv((c) => ({ ...c, transcript: m.text, reply: null, thinking: true, latency: { stt: m.stt_ms } }))
+        break
+      case 'ignored':
+        patch({ thinking: false })
         break
       case 'reply':
         setUiLang(m.lang)
-        if (!m.evening) patch({ reply: m, notice: '' })
+        if (!m.evening) patch({ reply: m, notice: '', thinking: false })
         if (m.source) setConv((c) => ({ ...c, latency: { ...c.latency, source: m.source, brain: m.brain_ms } }))
         break
       case 'latency':
@@ -167,7 +170,8 @@ export default function App() {
           </div>
         )}
         {tab === 'home' && (started
-          ? <Home t={t} conv={conv} voice={voice.current} toggleMic={toggleMic} lang={lang} uiLang={uiLang} />
+          ? <Home t={t} conv={conv} voice={voice.current} toggleMic={toggleMic} lang={lang} uiLang={uiLang}
+              onSubmit={(said) => patch({ transcript: said, reply: null, thinking: true })} />
           : <div className="start"><p>{meta.ui[uiLang].tapToSpeak}</p><button className="mic" onClick={start} aria-label="Start">🎤</button></div>)}
         {tab === 'customers' && <Customers t={t} uiLang={uiLang} open={openCustomer} setOpen={setOpenCustomer} />}
         {tab === 'orders' && <Orders t={t} uiLang={uiLang} />}
@@ -186,7 +190,7 @@ export default function App() {
   )
 }
 
-function Home({ t, conv, voice, toggleMic, lang, uiLang }) {
+function Home({ t, conv, voice, toggleMic, lang, uiLang, onSubmit }) {
   const [text, setText] = useState('')
   const [editing, setEditing] = useState(false)
   const [amount, setAmount] = useState('')
@@ -208,10 +212,15 @@ function Home({ t, conv, voice, toggleMic, lang, uiLang }) {
     window.open(url, '_blank', 'noopener') // WhatsApp opens with the text ready; the shopkeeper presses send
   }
 
+  const lastSent = useRef({ text: '', at: 0 })
   function send(e) {
     e.preventDefault()
-    if (!text.trim()) return
-    voice.sendText(text.trim())
+    const t2 = text.trim()
+    if (!t2) return
+    if (t2 === lastSent.current.text && Date.now() - lastSent.current.at < 1500) return // accidental double send
+    lastSent.current = { text: t2, at: Date.now() }
+    onSubmit(t2) // clear the old reply now; the newest request always wins
+    voice.sendText(t2)
     setText('')
   }
 
@@ -238,6 +247,7 @@ function Home({ t, conv, voice, toggleMic, lang, uiLang }) {
 
       {conv.notice && <p className="notice" role="status">{conv.notice}</p>}
       {conv.transcript && <p className="transcript">“{conv.transcript}”</p>}
+      {conv.thinking && !r && <div className="reply thinking" aria-live="polite">{t('thinking')}</div>}
       {r && <div className={`reply ${r.saved ? 'ok' : ''}`} aria-live="polite">{r.text}</div>}
       {r?.notify && <button className="btn primary wide" onClick={() => notify(r.notify)}>💬 {t('notifyCustomer')}</button>}
       {undoLeft > 0 && (

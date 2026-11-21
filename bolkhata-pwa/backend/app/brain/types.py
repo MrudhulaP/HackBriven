@@ -13,6 +13,8 @@ class BrainAction(str, Enum):
     confirm = "confirm"
     cancel = "cancel"
     undo = "undo"
+    queryCollections = "queryCollections"
+    topDebtor = "topDebtor"
     chooseCustomer = "chooseCustomer"
     addOrder = "addOrder"
     markArrived = "markArrived"

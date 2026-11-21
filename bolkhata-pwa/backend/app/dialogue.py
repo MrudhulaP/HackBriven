@@ -3,6 +3,7 @@ Three intents: txn (credit/payment), order (back-order to deliver later), arriva
 Nothing is written to the store until the shopkeeper confirms."""
 import copy
 import time
+from datetime import datetime, timedelta, timezone
 from collections import deque
 
 from .brain.types import TALK, BrainAction, BrainContext
@@ -14,6 +15,7 @@ from .prompts import UI, say
 
 
 UNDO_SECONDS = 10
+IST = timezone(timedelta(hours=5, minutes=30))
 
 
 class Conversation:
@@ -29,6 +31,8 @@ class Conversation:
         self.weak_name = False  # the guessed name matches no customer
         self.clock = time.monotonic  # replaceable in tests
         self.last = None  # what the last confirmed action changed, for undo
+        self.last_customer = None  # for follow-ups like "he paid 200"
+        self.p_customer_hint = None
 
     def set_mode(self, mode):
         self.mode = mode
@@ -139,12 +143,16 @@ class Conversation:
         if A == BrainAction.listOrders:
             return self._pending_list(b.customer)
         if A == BrainAction.setPhone:
-            matches = self.store.find(b.customer) if b.customer else []
-            if not b.phone or len(matches) != 1:
+            if not b.customer:
                 return None
-            self.p = {"intent": "phone", "name": matches[0]["name"], "customer": matches[0], "phone": b.phone,
-                      "raw": text, "type": None, "amount": None, "items": ""}
-            return self._confirm()
+            self.state = "idle"
+            self.p = {"intent": "phone", "name": display_name(b.customer) if " " not in b.customer else b.customer,
+                      "phone": b.phone, "raw": text, "type": None, "amount": None, "items": ""}
+            return self._advance()
+        if A == BrainAction.queryCollections:
+            return self._collections("week" if any(w in text.lower() for w in ("week", "hafta", "हफ्त")) else "today")
+        if A == BrainAction.topDebtor:
+            return self._top_debtor()
         name = display_name(b.customer) if b.customer and " " not in b.customer else b.customer
         said = parse(text)  # code-read facts from the same sentence fill what the LLM left out
         amount = b.amount if b.amount is not None else said.amount
@@ -229,11 +237,16 @@ class Conversation:
         p = parse(text)
         if p.undo:  # "undo", "galti ho gayi", "ತಪ್ಪಾಯ್ತು": while confirming it cancels, after a save it reverts
             return self.undo() if self.state == "idle" else self._reset("cancelled")
-        complete = (p.is_query or (p.name and p.amount and p.txn_type) or (p.order and p.name and p.items)
-                    or (p.arrival and p.name))
-        if self.state != "idle" and complete:
-            self.state, self.p = "idle", {}  # a complete new command replaces the unsaved one
+        if self.state != "idle" and self._is_new_command(p):
+            self.state, self.p = "idle", {}  # a new command replaces the unsaved one; never answer it with the old question
         return getattr(self, "_on_" + self.state)(p, text)
+
+    def _is_new_command(self, p):
+        """True when the utterance is its own command, not an answer to the pending question."""
+        if self.state == "askPhone" and p.phone and not (p.name and p.name_strong):
+            return False  # "98765 43210" answers "what is the number?"
+        return bool(p.is_query or p.collections or p.top_debtor or p.list_goods or p.contact
+                    or (p.name and p.amount and p.txn_type) or (p.order and p.name and p.items) or (p.arrival and p.name))
 
     def tap_confirm(self, yes: bool):
         if self.state != "confirming":
@@ -259,11 +272,18 @@ class Conversation:
 
     # ---- states
     def _on_idle(self, p, text):
+        if p.pronoun and self.last_customer and not (p.name and self.store.find(p.name)):
+            p.name, p.name_strong = self.last_customer["name"], True  # "he paid 200" -> the customer just discussed
+            self.p_customer_hint = self.last_customer
+        else:
+            self.p_customer_hint = None
         if p.name and not p.name_strong and not self.store.find(p.name):
             known = next((t for t in p.tokens if is_name_word(t) and self.store.find(t)), None)
             if known:  # "Gandhinagar Ramesh ..." -> the known customer, not the first unknown word
                 p.name = display_name(known)
         base = {"name": p.name, "amount": p.amount, "type": p.txn_type, "items": p.items, "raw": text}
+        if self.p_customer_hint:
+            base["customer"] = self.p_customer_hint
         if p.name and not p.name_strong and not self.store.find(p.name):
             self.soft_miss = self.weak_name = True  # name is only a guess (first unknown word) and matches nobody
         if p.amount is not None and p.amount < 10 and not any(t.isdigit() for t in p.tokens):
@@ -277,6 +297,13 @@ class Conversation:
             return self._advance()
         if p.list_goods:
             return self._pending_list(None)  # "kiska saamaan baaki hai"
+        if p.collections:
+            return self._collections(p.collections)
+        if p.top_debtor:
+            return self._top_debtor()
+        if p.contact:
+            self.p = {**base, "intent": "phone", "phone": p.phone, "amount": None, "type": None}
+            return self._advance()
         if p.order:
             if not p.items and not (p.name and not self._pending_for(p.name)):
                 return self._pending_list(p.name)
@@ -350,6 +377,16 @@ class Conversation:
         self._add_raw(text)
         return self.tap_choose(idx)
 
+    def _on_askPhone(self, p, text):
+        if not p.phone:
+            if p.no:
+                return self._reset("cancelled")
+            self.miss = True
+            return self._r("askPhone", name=self.p["name"])
+        self.p["phone"] = p.phone
+        self._add_raw(text)
+        return self._advance()
+
     def _on_askNote(self, p, text):
         """Area for a new customer who shares a name, e.g. 'Gandhi Nagar'. 'skip' leaves it empty."""
         words = [] if p.skip else [w for w in p.tokens if w not in KEYWORDS and not w.isdigit()]
@@ -390,6 +427,9 @@ class Conversation:
             if p["type"] is None:
                 self.state = "askType"
                 return self._r("askType", name=p["name"], amount=p["amount"])
+        if p["intent"] == "phone" and not p.get("phone"):
+            self.state = "askPhone"
+            return self._r("askPhone", name=p["name"])
         if p["intent"] == "order" and not p["items"]:
             self.state = "askItems"
             return self._r("askItems", name=p["name"])
@@ -428,7 +468,12 @@ class Conversation:
         name = c["name"] if c else p["name"]
         card = {"name": name, "note": c["note"] if c else p.get("note", ""), "type": p["type"], "isNew": c is None}
         if p["intent"] == "phone":
-            return self._r("confirmPhone", card={**card, "type": "phone", "phone": p["phone"]}, name=name, phone=p["phone"])
+            spoken = p["phone"][:5] + " " + p["phone"][5:]  # read back in two groups: 98765 43210
+            card = {**card, "type": "phone", "phone": spoken}
+            other = self.store.customer_with_phone(p["phone"])
+            if other and (not c or other["id"] != c["id"]):
+                return self._r("phoneTaken", card=card, other=other["name"], name=name, phone=spoken)
+            return self._r("confirmPhone" if c else "confirmPhoneNew", card=card, name=name, phone=spoken)
         if p["intent"] == "order":
             return self._r("confirmOrder", card={**card, "type": "order", "items": p["items"]}, name=name, items=p["items"])
         if p["intent"] == "arrival":
@@ -445,6 +490,7 @@ class Conversation:
         p = self.p
         created = p["customer"] is None
         c = p["customer"] or self.store.add_customer(p["name"], p.get("note", ""))
+        self.last_customer = c
         self.state, self.p = "idle", {}
         undo = {"at": self.clock(), "cid": c["id"], "name": c["name"], "created": created}
         if p["intent"] == "phone":
@@ -474,9 +520,27 @@ class Conversation:
             self.soft_miss = True  # 'Lakshmi didi ka hisaab' -> rules took 'didi' as the name
             return self._r("customerNotFound", name=name)
         if len(matches) == 1:
+            self.last_customer = matches[0]
             return self._r("balanceIs", name=matches[0]["name"], balance=matches[0]["balance"])
         lst = ", ".join(f'{c["note"] or c["name"]} {c["balance"]}' for c in matches)
         return self._r("balanceMulti", name=matches[0]["name"], list=lst)
+
+    def _collections(self, period):
+        now = datetime.now(IST)
+        start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        if period == "week":
+            start -= timedelta(days=now.weekday())  # since Monday
+        amount = self.store.payments_since(start)
+        return self._r("collectionsWeek" if period == "week" else "collectionsToday", amount=amount)
+
+    def _top_debtor(self):
+        owing = [c for c in self.store.customers() if c["balance"] > 0]
+        if not owing:
+            return self._r("noDues")
+        top = max(owing, key=lambda c: c["balance"])
+        self.last_customer = top
+        name = top["name"] + (f" ({top['note']})" if top["note"] else "")
+        return self._r("topDebtor", name=name, balance=top["balance"])
 
     def _pending_for(self, name):
         ids = {c["id"] for c in self.store.find(name)}

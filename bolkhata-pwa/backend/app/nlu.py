@@ -132,10 +132,24 @@ ITEM_FILLER = set("""liye लिए लिये chahiye चाहिए dena de
     list show tell me ಹೇಳಿ ತೋರಿಸಿ చెప్పండి చూపించు சொல்லுங்க சொல்லுங்கள் காட்டு ಸಾಮಾನು సామాను சாமான்
     பொருள் பொருட்கள் வேணும் ಬರೆದುಕೊಳ್ಳಿ ಬರ್ಕೊಳ್ಳಿ ಬರ್ಕೊಳಿ రాసుకోండి రాసుకో எழுதிக்கோங்க எழுதிக்கோ காசு ದುಡ್ಡು డబ్బులు baad later saamaan saman सामान goods items stuff hai है hain हैं karo करो
     kar कर gaya gayi gaye aa aaya aayi ಬೇಕು ಕೊಡಬೇಕು ಅವರಿಗೆ ఆయనకు அவருக்கு కావాలి ఇవ్వాలి வேண்டும் கொடுக்கணும்""".split())
+# Contact saving: "Save Arjun's number as 99999 99999", "Arjun ka mobile number ... save karo"  // VERIFY kn/te/ta
+CONTACT = {"number", "phone", "mobile", "contact", "नंबर", "नम्बर", "फ़ोन", "फोन", "मोबाइल", "ನಂಬರ್", "ಫೋನ್",
+           "ಮೊಬೈಲ್", "నంబర్", "ఫోన్", "మొబైల్", "நம்பர்", "போன்", "மொபைல்", "எண்"}
+CONTACT_VERBS = {"save", "add", "update", "change", "set", "store", "note", "सेव", "ಸೇವ್", "సేవ్", "சேவ்"}
+# "He paid 200" right after Lakshmi -> Lakshmi
+PRONOUN = {"he", "she", "him", "her", "usne", "unhone", "uska", "uski", "unka", "unki", "उसने", "उन्होंने", "उसका",
+           "उसकी", "ಅವರು", "ಅವನು", "ಅವಳು", "ఆయన", "ఆమె", "అతను", "அவர்", "அவன்", "அவள்"}
+COLLECT = {"collection", "collections", "collected", "collect", "vasooli", "vasuli", "वसूली", "कलेक्शन", "ಕಲೆಕ್ಷನ್",
+           "వసూలు", "కలెక్షన్", "வசூல்", "கலெக்ஷன்"}
+WEEK = {"week", "weekly", "hafta", "hafte", "हफ्ता", "हफ्ते", "सप्ताह", "ವಾರ", "ವಾರದ", "వారం", "వారంలో", "வாரம்", "வாரத்தில்"}
+MOST = {"most", "highest", "top", "maximum", "sabse", "zyada", "jyada", "सबसे", "ज्यादा", "ज़्यादा", "ಹೆಚ್ಚು", "ఎక్కువ",
+        "அதிகம்", "அதிகமா"}
+
 KEYWORDS = (set(UNITS) | set(MULT) | set(FRAC) | SAADE | PAUNE | YES | NO | QUERY | GIVE | PAYMENT_KW | CREDIT_KW
             | POSTPOS | TIME | RUPEE | STOP | {"pe", "baaki"} | set().union(*ORDINALS) | ORDER | ARRIVED | AA
             | GAYA | NEW | SKIP | ITEM_FILLER | HONORIFIC | FILLER | GIVE_I | GIVE_HE | PAID_REG | CREDIT_REG | WANT
-            | CAME | TOTAL | {"kiska", "kiski", "kiske", "kaun", "किसका", "किसकी", "कौन"})
+            | CAME | TOTAL | {"kiska", "kiski", "kiske", "kaun", "किसका", "किसकी", "कौन"} | CONTACT | CONTACT_VERBS
+            | PRONOUN | COLLECT | WEEK | MOST | MONEY | {"as", "to", "for", "me", "my", "who", "i", "did", "show", "today's", "this", "that", "these", "all"})
 
 
 def tokenize(text: str) -> list[str]:
@@ -343,6 +357,10 @@ class Parsed:
     name_strong: bool = False
     undo: bool = False
     list_goods: bool = False
+    contact: bool = False  # saving / updating a phone number
+    pronoun: bool = False  # "he paid 200": refers to the last customer
+    collections: str | None = None  # "today" | "week"
+    top_debtor: bool = False
 
 
 def parse(text: str) -> Parsed:
@@ -377,6 +395,12 @@ def parse(text: str) -> Parsed:
         phone=phone,
         name_strong=strong,
         undo=is_undo(tokens),
+        contact=bool(phone) or (any(t in CONTACT for t in tokens) and any(t in CONTACT_VERBS for t in tokens)),
+        pronoun=any(t in PRONOUN for t in tokens),
+        collections=(("week" if any(t in WEEK for t in tokens) else "today") if any(t in COLLECT for t in tokens)
+                     or (any(t in TIME | WEEK for t in tokens) and any(t in GOT | {"received", "मिले"} for t in tokens)
+                         and amount is None) else None),
+        top_debtor=any(t in MOST for t in tokens) and any(t in QUERY | {"owe", "owes", "debtor", "udhaar"} for t in tokens),
         list_goods=is_query and any(t in GOODS for t in tokens),  # "kiska saamaan baaki hai"
     )
 
