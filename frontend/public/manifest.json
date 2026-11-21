@@ -1,0 +1,16 @@
+{
+  "short_name": "BolKhata",
+  "name": "BolKhata - The Ledger You Talk To",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "64x64 128x128 256x256 512x512"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#F8F6F0",
+  "theme_color": "#1B4332",
+  "display": "standalone",
+  "orientation": "portrait"
+}
