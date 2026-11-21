@@ -91,3 +91,9 @@ th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line
 .evening p { margin: 6px 0 10px; }
 .evening .chips { justify-content: flex-start; margin-bottom: 10px; }
 .tabs button { font-size: 12px; }
+
+/* app bar fits a 375 px phone with all four controls */
+.bar { gap: 6px; padding: 10px 10px; }
+.bar h1 { font-size: 19px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar .chip { padding: 0 10px; font-size: 14px; white-space: nowrap; }
+.bar select { max-width: 92px; font-size: 15px; }

@@ -264,7 +264,8 @@ class VoiceSession:
             a = m.get("action")
             r = (self.conv.tap_confirm(True) if a == "save" else self.conv.tap_confirm(False) if a == "cancel"
                  else self.conv.tap_choose(int(m.get("index", -1))) if a == "choose"
-                 else self.conv.tap_amount(int(m.get("amount", 0))) if a == "amount" else None)
+                 else self.conv.tap_amount(int(m.get("amount", 0))) if a == "amount"
+                 else self.conv.undo() if a == "undo" else None)
             if r:
                 await self.reply(r)
 

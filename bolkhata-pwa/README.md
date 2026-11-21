@@ -109,6 +109,10 @@ Seed data (synthetic): Ramesh (Gandhi Nagar) ₹450, Ramesh (Station Road) ₹20
 - **Evening check.** Once a day after the shop closing time (Settings, default 20:00), Home shows a banner and speaks a list of customers with no phone number and all pending orders. Tapping a name opens that customer's page to add the phone. It appears only while the app is open; there are no push notifications.
 - **Noise.** The browser's noise suppression, echo cancellation and auto-gain are on, and the app sends silence while it speaks. Not yet tested in a real noisy shop.
 
+## Undo
+
+After any save (credit, payment, new customer, phone number, order, arrival), an **↩ Undo** button shows for 10 seconds. Saying "undo", "galti ho gayi", "wapas lo", "ತಪ್ಪಾಯ್ತು", "తప్పు అయింది" or "தப்பா போச்சு" does the same. It reverts only that last action. After 10 seconds nothing changes, and the app says so.
+
 ## LLM brain (optional)
 
 Messy, rambling speech ("yaar woh Lakshmi aayi thi, teen sau ka saamaan le gayi") goes to an LLM. Clear commands never do.

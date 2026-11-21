@@ -124,6 +124,17 @@ class Store:
     def balance(self, cid):
         return self.balances().get(cid, 0)
 
+    # ---- undo support (removes only what one confirmed action created)
+    def delete_entry(self, eid):
+        self.entries_c.delete_one({"id": eid})
+
+    def delete_order(self, oid):
+        self.orders_c.delete_one({"id": oid})
+
+    def delete_customer_if_unused(self, cid):
+        if not self.entries_c.count_documents({"customer_id": cid}) and not self.orders_c.count_documents({"customer_id": cid}):
+            self.customers_c.delete_one({"id": cid})
+
     # ---- back-orders: pending -> arrived -> closed
     def add_order(self, cid, items, raw_text, language):
         o = {"id": str(uuid.uuid4()), "customer_id": cid, "items": items, "status": "pending",

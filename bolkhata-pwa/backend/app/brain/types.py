@@ -12,6 +12,7 @@ class BrainAction(str, Enum):
     correction = "correction"
     confirm = "confirm"
     cancel = "cancel"
+    undo = "undo"
     chooseCustomer = "chooseCustomer"
     addOrder = "addOrder"
     markArrived = "markArrived"

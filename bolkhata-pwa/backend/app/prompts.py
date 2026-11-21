@@ -183,6 +183,22 @@ _BRAIN = {
 for _lang, _extra in _BRAIN.items():
     PROMPTS[_lang].update(_extra)
 
+# Undo (10 seconds after a save). kn/te/ta: // VERIFY by native speaker
+_UNDO = {
+    "hi": {"undone": "ठीक है, {name} की आखिरी एंट्री हटा दी।",
+           "undoExpired": "10 सेकंड निकल गए, अब undo नहीं हो सकता। कुछ नहीं बदला।"},
+    "en": {"undone": "Okay, I took back the last entry for {name}.",
+           "undoExpired": "Undo works only within 10 seconds. Nothing was changed."},
+    "kn": {"undone": "ಸರಿ, {name} ಅವರ ಕೊನೆಯ ಎಂಟ್ರಿ ತೆಗೆದೆ.",
+           "undoExpired": "10 ಸೆಕೆಂಡ್ ಆಗಿಹೋಯಿತು, ಈಗ undo ಆಗಲ್ಲ. ಏನೂ ಬದಲಾಗಿಲ್ಲ."},
+    "te": {"undone": "సరే, {name} చివరి ఎంట్రీ తీసేశాను.",
+           "undoExpired": "10 సెకన్లు అయిపోయాయి, ఇప్పుడు undo కుదరదు. ఏమీ మారలేదు."},
+    "ta": {"undone": "சரி, {name} கடைசி பதிவை நீக்கிட்டேன்.",
+           "undoExpired": "10 வினாடி ஆகிவிட்டது, இப்போது undo முடியாது. எதுவும் மாறவில்லை."},
+}
+for _lang, _extra in _UNDO.items():
+    PROMPTS[_lang].update(_extra)
+
 # An LLM reply containing any of these is never spoken (no pressure or threats about money).
 BANNED = {
     "en": ["pay now", "or else", "immediately", "legal action", "police", "court", "shame", "penalty", "last warning",
@@ -260,18 +276,18 @@ _UI_ROWS = {
 UI = {lang: dict(zip(_UI_KEYS, row, strict=True)) for lang, row in _UI_ROWS.items()}
 
 _UI_MORE_KEYS = ("orders pendingOrders arrivedOrders markArrived markDelivered notifyCustomer items area lastVisit "
-                 "closingTime dismiss order arrival eveningTitle brain regionalLanguage none").split()
+                 "closingTime dismiss order arrival eveningTitle brain regionalLanguage none undo").split()
 _UI_MORE = {
     "en": ["Orders", "Pending orders", "Arrived, not picked up", "Arrived", "Delivered", "Tell on WhatsApp", "Items",
-           "Area", "Last visit", "Shop closing time (evening reminder)", "Done", "ORDER", "ARRIVED", "Evening check", "LLM brain", "Shop's regional language (helps Auto)", "None"],
+           "Area", "Last visit", "Shop closing time (evening reminder)", "Done", "ORDER", "ARRIVED", "Evening check", "LLM brain", "Shop's regional language (helps Auto)", "None", "Undo"],
     "hi": ["ऑर्डर", "बाकी ऑर्डर", "आ गया, ले जाना बाकी", "आ गया", "दे दिया", "WhatsApp पर बताएँ", "सामान", "इलाका",
-           "पिछली बार", "दुकान बंद होने का समय (शाम का रिमाइंडर)", "ठीक है", "ऑर्डर", "आ गया", "शाम की जाँच", "LLM दिमाग", "दुकान की क्षेत्रीय भाषा (ऑटो में मदद)", "कोई नहीं"],
+           "पिछली बार", "दुकान बंद होने का समय (शाम का रिमाइंडर)", "ठीक है", "ऑर्डर", "आ गया", "शाम की जाँच", "LLM दिमाग", "दुकान की क्षेत्रीय भाषा (ऑटो में मदद)", "कोई नहीं", "वापस लें"],
     "kn": ["ಆರ್ಡರ್", "ಬಾಕಿ ಆರ್ಡರ್", "ಬಂದಿದೆ, ತೆಗೆದುಕೊಂಡಿಲ್ಲ", "ಬಂದಿದೆ", "ಕೊಟ್ಟಾಯಿತು", "WhatsApp ನಲ್ಲಿ ತಿಳಿಸಿ", "ಸಾಮಾನು",
-           "ಏರಿಯಾ", "ಕೊನೆಯ ಭೇಟಿ", "ಅಂಗಡಿ ಮುಚ್ಚುವ ಸಮಯ (ಸಂಜೆ ನೆನಪು)", "ಸರಿ", "ಆರ್ಡರ್", "ಬಂದಿದೆ", "ಸಂಜೆ ಪರಿಶೀಲನೆ", "LLM ಮೆದುಳು", "ಅಂಗಡಿಯ ಪ್ರಾದೇಶಿಕ ಭಾಷೆ (ಆಟೋಗೆ ಸಹಾಯ)", "ಯಾವುದೂ ಇಲ್ಲ"],  # VERIFY by native speaker
+           "ಏರಿಯಾ", "ಕೊನೆಯ ಭೇಟಿ", "ಅಂಗಡಿ ಮುಚ್ಚುವ ಸಮಯ (ಸಂಜೆ ನೆನಪು)", "ಸರಿ", "ಆರ್ಡರ್", "ಬಂದಿದೆ", "ಸಂಜೆ ಪರಿಶೀಲನೆ", "LLM ಮೆದುಳು", "ಅಂಗಡಿಯ ಪ್ರಾದೇಶಿಕ ಭಾಷೆ (ಆಟೋಗೆ ಸಹಾಯ)", "ಯಾವುದೂ ಇಲ್ಲ", "ಹಿಂಪಡೆ"],  # VERIFY by native speaker
     "te": ["ఆర్డర్లు", "పెండింగ్ ఆర్డర్లు", "వచ్చింది, తీసుకెళ్ళలేదు", "వచ్చింది", "ఇచ్చేశాం", "WhatsApp లో చెప్పండి", "సామాను",
-           "ఏరియా", "చివరి సందర్శన", "షాప్ మూసే సమయం (సాయంత్రం గుర్తు)", "సరే", "ఆర్డర్", "వచ్చింది", "సాయంత్రం తనిఖీ", "LLM మెదడు", "షాప్ ప్రాంతీయ భాష (ఆటోకు సహాయం)", "ఏదీ లేదు"],  # VERIFY by native speaker
+           "ఏరియా", "చివరి సందర్శన", "షాప్ మూసే సమయం (సాయంత్రం గుర్తు)", "సరే", "ఆర్డర్", "వచ్చింది", "సాయంత్రం తనిఖీ", "LLM మెదడు", "షాప్ ప్రాంతీయ భాష (ఆటోకు సహాయం)", "ఏదీ లేదు", "వెనక్కి"],  # VERIFY by native speaker
     "ta": ["ஆர்டர்கள்", "நிலுவை ஆர்டர்கள்", "வந்துவிட்டது, எடுக்கவில்லை", "வந்துவிட்டது", "கொடுத்தாயிற்று", "WhatsApp இல் சொல்",
-           "பொருட்கள்", "பகுதி", "கடைசி வருகை", "கடை மூடும் நேரம் (மாலை நினைவூட்டல்)", "சரி", "ஆர்டர்", "வந்தது", "மாலை சரிபார்ப்பு", "LLM மூளை", "கடையின் பிராந்திய மொழி (தானியங்கிக்கு உதவும்)", "எதுவும் இல்லை"],  # VERIFY by native speaker
+           "பொருட்கள்", "பகுதி", "கடைசி வருகை", "கடை மூடும் நேரம் (மாலை நினைவூட்டல்)", "சரி", "ஆர்டர்", "வந்தது", "மாலை சரிபார்ப்பு", "LLM மூளை", "கடையின் பிராந்திய மொழி (தானியங்கிக்கு உதவும்)", "எதுவும் இல்லை", "திரும்பப் பெறு"],  # VERIFY by native speaker
 }
 for _lang, _row in _UI_MORE.items():
     UI[_lang].update(zip(_UI_MORE_KEYS, _row, strict=True))

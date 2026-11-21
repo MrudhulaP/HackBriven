@@ -4,6 +4,7 @@ import { Customers, Ledger, Orders, Settings } from './screens.jsx'
 
 export const LANG_NAMES = { auto: 'Auto', hi: 'हिन्दी', en: 'English', kn: 'ಕನ್ನಡ', te: 'తెలుగు', ta: 'தமிழ்' }
 const ENGINE_NAMES = { live: 'Gnani Live', rest: 'Gnani REST', browser: 'Browser' }
+const ENGINE_SHORT = { live: 'Live', rest: 'REST', browser: 'Web' } // fits a phone-width app bar
 export const api = (path, opts) =>
   fetch(path, opts).then((r) => (r.ok ? r.json() : r.json().then((e) => Promise.reject(new Error(e.detail || r.status)))))
 
@@ -142,7 +143,7 @@ export default function App() {
         <select aria-label={t('language')} value={lang} onChange={(e) => changeLang(e.target.value)}>
           {Object.entries(LANG_NAMES).map(([k, v]) => <option key={k} value={k}>{k === 'auto' ? t('auto') : v}</option>)}
         </select>
-        <button className="chip" onClick={cycleEngine} title="Voice engine">{ENGINE_NAMES[engine]}</button>
+        <button className="chip" onClick={cycleEngine} title={`Voice engine: ${ENGINE_NAMES[engine]}`}>{ENGINE_SHORT[engine]}</button>
         <button className={`chip ${bargeIn ? 'on' : ''}`} aria-pressed={bargeIn} onClick={toggleBarge} title={t('bargeIn')}>🗣</button>
         {meta.llm && meta.llm.length > 0 && (
           <button className={`chip ${brainOn ? 'on' : ''}`} aria-pressed={brainOn} onClick={toggleBrain} title={t('brain')}>🧠</button>
@@ -191,6 +192,15 @@ function Home({ t, conv, voice, toggleMic, lang, uiLang }) {
   const [amount, setAmount] = useState('')
   const r = conv.reply
   const card = r?.state === 'confirming' ? r.card : null
+  const [undoLeft, setUndoLeft] = useState(0)
+  useEffect(() => {
+    if (!r?.saved || !r.undo) { setUndoLeft(0); return }
+    const until = Date.now() + r.undo * 1000
+    const tick = () => setUndoLeft(Math.max(0, Math.ceil((until - Date.now()) / 1000)))
+    tick()
+    const id = setInterval(tick, 250)
+    return () => clearInterval(id)
+  }, [r])
   const money = card && !['order', 'arrival', 'phone'].includes(card.type)
 
   async function notify(cid) {
@@ -230,6 +240,9 @@ function Home({ t, conv, voice, toggleMic, lang, uiLang }) {
       {conv.transcript && <p className="transcript">“{conv.transcript}”</p>}
       {r && <div className={`reply ${r.saved ? 'ok' : ''}`} aria-live="polite">{r.text}</div>}
       {r?.notify && <button className="btn primary wide" onClick={() => notify(r.notify)}>💬 {t('notifyCustomer')}</button>}
+      {undoLeft > 0 && (
+        <button className="btn wide" onClick={() => { setUndoLeft(0); voice.tap('undo') }}>↩ {t('undo')} ({undoLeft})</button>
+      )}
 
       {r?.state === 'chooseCustomer' && (
         <div className="chips">

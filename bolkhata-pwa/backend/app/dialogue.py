@@ -2,6 +2,7 @@
 Three intents: txn (credit/payment), order (back-order to deliver later), arrival (ordered goods came in).
 Nothing is written to the store until the shopkeeper confirms."""
 import copy
+import time
 from collections import deque
 
 from .brain.types import TALK, BrainAction, BrainContext
@@ -10,6 +11,9 @@ from .lang import detect_language
 from .lang import name_key
 from .nlu import KEYWORDS, choose_index, display_name, extract_items, extract_phone, is_name_word, parse, tokenize
 from .prompts import UI, say
+
+
+UNDO_SECONDS = 10
 
 
 class Conversation:
@@ -23,6 +27,8 @@ class Conversation:
         self.miss = False  # rules could not understand this turn
         self.soft_miss = False  # rules only guessed (e.g. a name that is just the first unknown word)
         self.weak_name = False  # the guessed name matches no customer
+        self.clock = time.monotonic  # replaceable in tests
+        self.last = None  # what the last confirmed action changed, for undo
 
     def set_mode(self, mode):
         self.mode = mode
@@ -116,6 +122,8 @@ class Conversation:
             if b.reply:
                 reply["text"] = b.reply  # sanitized free text, only ever for help / small talk / unclear
             return reply
+        if A == BrainAction.undo:
+            return self.undo() if st == "idle" else None
         if A == BrainAction.confirm:
             return self.tap_confirm(True) if st == "confirming" else None
         if A == BrainAction.cancel:
@@ -167,6 +175,41 @@ class Conversation:
             return self._advance()
         return None
 
+    def _arrival_by_item(self, tokens):
+        keys = {name_key(t) for t in tokens if len(name_key(t)) >= 3}
+        hits = [o for o in self.store.orders("pending")
+                if keys & {name_key(w) for w in o["items"].split() if len(name_key(w)) >= 3}]
+        if not hits:
+            return None
+        custs = {o["customer_id"]: o for o in hits}
+        found = [c for c in self.store.customers() if c["id"] in custs]
+        self.p["name"] = found[0]["name"]
+        self.p["items"] = " ".join(t for t in tokens if name_key(t) in keys)
+        if len(found) == 1:
+            self.p["customer"], self.p["orders"] = found[0], hits
+            return self._confirm()
+        self.p["candidates"] = found
+        return self._choose_prompt()
+
+    def undo(self):
+        """Revert the last confirmed action if it was within 10 seconds."""
+        last, self.last = self.last, None
+        if not last or self.clock() - last["at"] > UNDO_SECONDS:
+            return self._r("undoExpired")
+        k, st = last["kind"], self.store
+        if k == "entry":
+            st.delete_entry(last["eid"])
+        elif k == "order":
+            st.delete_order(last["oid"])
+        elif k == "arrival":
+            for oid in last["oids"]:
+                st.set_order_status(oid, "pending")
+        elif k == "phone":
+            st.update_customer(last["cid"], phone=last["old"] or "")
+        if last.get("created"):
+            st.delete_customer_if_unused(last["cid"])
+        return self._r("undone", name=last["name"])
+
     def _pick_area(self, area):
         """LLM said 'Ramesh (Gandhi Nagar)': go straight to that customer instead of asking which one."""
         if not area or not self.p.get("name"):
@@ -184,6 +227,8 @@ class Conversation:
     def _rules(self, text):
         self.miss = self.soft_miss = self.weak_name = False
         p = parse(text)
+        if p.undo:  # "undo", "galti ho gayi", "ತಪ್ಪಾಯ್ತು": while confirming it cancels, after a save it reverts
+            return self.undo() if self.state == "idle" else self._reset("cancelled")
         complete = (p.is_query or (p.name and p.amount and p.txn_type) or (p.order and p.name and p.items)
                     or (p.arrival and p.name))
         if self.state != "idle" and complete:
@@ -225,7 +270,13 @@ class Conversation:
             self.soft_miss = True  # "dhamki do" -> 'do' (give) is not ₹2
         if p.arrival:
             self.p = {**base, "intent": "arrival"}
+            if not (p.name and self.store.find(p.name)):
+                by_item = self._arrival_by_item(p.tokens)  # "cheeni aa gayi": find the order from the goods
+                if by_item:
+                    return by_item
             return self._advance()
+        if p.list_goods:
+            return self._pending_list(None)  # "kiska saamaan baaki hai"
         if p.order:
             if not p.items and not (p.name and not self._pending_for(p.name)):
                 return self._pending_list(p.name)
@@ -387,22 +438,31 @@ class Conversation:
         return self._r(key, card={**card, "amount": p["amount"]}, name=name, amount=p["amount"])
 
     def _save(self):
+        r = self._do_save()
+        return {**r, "undo": UNDO_SECONDS}  # the screen shows an Undo button for this long
+
+    def _do_save(self):
         p = self.p
+        created = p["customer"] is None
         c = p["customer"] or self.store.add_customer(p["name"], p.get("note", ""))
         self.state, self.p = "idle", {}
+        undo = {"at": self.clock(), "cid": c["id"], "name": c["name"], "created": created}
         if p["intent"] == "phone":
+            self.last = {**undo, "kind": "phone", "old": c["phone"]}
             self.store.update_customer(c["id"], phone=p["phone"])
             return self._r("phoneSaved", saved=True, name=c["name"])
         if p["intent"] == "order":
-            self.store.add_order(c["id"], p["items"], p["raw"], self.lang)
+            self.last = {**undo, "kind": "order", "oid": self.store.add_order(c["id"], p["items"], p["raw"], self.lang)}
             return self._r("orderSaved", saved=True, name=c["name"], items=p["items"])
         if p["intent"] == "arrival":
             for o in p["orders"]:
                 self.store.set_order_status(o["id"], "arrived")
+            self.last = {**undo, "kind": "arrival", "oids": [o["id"] for o in p["orders"]]}
             if not c["phone"]:
                 return self._r("arrivedNoPhone", saved=True, name=c["name"])
             return {**self._r("arrivedSaved", saved=True, name=c["name"]), "notify": c["id"]}
-        self.store.add_entry(c["id"], p["type"], p["amount"], p["raw"], self.lang)
+        eid = self.store.add_entry(c["id"], p["type"], p["amount"], p["raw"], self.lang)
+        self.last = {**undo, "kind": "entry", "eid": eid}
         return self._r("saved", saved=True, name=c["name"], balance=self.store.balance(c["id"]))
 
     def _query(self, name):

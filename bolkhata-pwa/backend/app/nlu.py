@@ -67,6 +67,7 @@ GIVE = {"diya", "diye", "dia", "di", "दिया", "दिए", "दिये"
 GOT = {"mila", "mile", "mili", "मिला", "मिले", "मिली"}
 JAMA = {"jama", "जमा"}
 PAYMENT_KW = GOT | JAMA | {"payment", "paid", "pay", "received", "gave", "given", "returned", "wapas", "vapas",
+                           "jamaa", "kattidaru", "kattaru", "kattinar",
                            "वापस", "ಕೊಟ್ಟರು", "ಕೊಟ್ಟ", "ಕೊಟ್ಟಿದ್ದಾರೆ", "ಪಾವತಿ", "ఇచ్చారు", "ఇచ్చాడు", "చెల్లించారు",
                            "கொடுத்தார்", "கொடுத்தான்", "செலுத்தினார்", "kottaru", "icharu", "koduthaar",
                            "पेमेंट", "पेड", "ಪೇಮೆಂಟ್", "పేమెంట్", "பேமெண்ட்"}
@@ -77,6 +78,17 @@ CREDIT_KW = TAKE | {"udhaar", "udhar", "udhari", "udhaari", "उधार", "cre
                     "ತಗೊಂಡು", "ತೆಗೆದುಕೊಂಡು", "ತಗೊಂಡ", "తీసుకెళ్ళాడు", "తీసుకెళ్లాడు", "తీసుకెళ్ళారు", "తీసుకున్నాడు",
                     "எடுத்துட்டு", "எடுத்துகிட்டு", "எடுத்தார்", "வாங்கிட்டு"}
 POSTPOS = {"ne", "se", "ko", "ka", "ki", "ke", "ने", "से", "को", "का", "की", "के"}
+# Kannada/Telugu/Tamil perspective, like Hindi ne/ko:  // VERIFY by native speaker
+#   "I gave" (shop gave goods) = credit;  "Ramesh gave" = payment, unless "gave TO Ramesh" (ರಮೇಶ್‌ಗೆ) = credit.
+GIVE_I = {"ಕೊಟ್ಟೆ", "ಕೊಟ್ಟಿದ್ದೇನೆ", "ಕೊಟ್ಟಿದೀನಿ", "ఇచ్చాను", "ఇచ్చా", "கொடுத்தேன்", "குடுத்தேன்", "கொடுத்திருக்கேன்"}
+GIVE_HE = {"ಕೊಟ್ಟರು", "ಕೊಟ್ರು", "ಕೊಟ್ಟ", "ಕೊಟ್ಟಿದ್ದಾರೆ", "ಕೊಟ್ಟನು", "ఇచ్చారు", "ఇచ్చాడు", "ఇచ్చింది",
+           "கொடுத்தார்", "கொடுத்தான்", "குடுத்தாரு", "குடுத்தார்", "கொடுத்தாரு", "கொடுத்தாங்க", "kottaru", "icharu",
+           "koduthaar"}
+PAID_REG = {"ಕಟ್ಟಿದರು", "ಕಟ್ಟಿದ್ರು", "ಕಟ್ಟಿದ", "ಕಟ್ಟಿದ್ದಾರೆ", "ಜಮಾ", "కట్టారు", "కట్టాడు", "కట్టింది", "జమ",
+            "கட்டினார்", "கட்டினாரு", "கட்டிட்டாரு", "கட்டினாங்க", "வரவு"}
+CREDIT_REG = {"ಉದ್ರಿ", "ಉದರಿ", "udri", "ತೆಗೆದುಕೊಂಡ", "ತಗೊಂಡಿದ್ದಾರೆ", "తీసుకెళ్లారు", "வாங்கினாரு",
+              "வாங்கிட்டாரு", "வாங்கினாங்க"}
+_DATIVE = ("ige", "ge", "kke", "ke", "ki", "ku", "kku", "uku", "ukku")
 TIME = {"aaj", "kal", "abhi", "today", "yesterday", "tomorrow", "now", "आज", "कल", "अभी", "ಇವತ್ತು", "ಇಂದು", "ನಾಳೆ",
         "ఈరోజు", "రేపు", "இன்று", "இன்னைக்கு", "இன்றைக்கு", "நாளைக்கு", "நாளை"}
 RUPEE = {"rs", "rupaye", "rupay", "rupye", "rupee", "rupees", "inr", "रुपये", "रुपए", "रूपये", "ರೂಪಾಯಿ",
@@ -102,6 +114,14 @@ ORDER = {"order", "orders", "ordered", "pending", "ऑर्डर", "आर्�
          "ಆರ್ಡರ್‌ಗಳು", "ಆರ್ಡರ್ಗಳು", "ಪೆಂಡಿಂಗ್", "ఆర్డర్", "ఆర్డర్లు", "పెండింగ్", "ஆர்டர்", "ஆர்டர்கள்", "பெண்டிங்"}
 LATER = [("baad", "mein"), ("baad", "me"), ("बाद", "में")]
 # "Ramesh ka saamaan aa gaya", "Ramesh's sugar arrived"
+WANT = {"chahiye", "चाहिए", "mangwana", "mangana", "मंगवाना", "मंगाना", "ಬೇಕು", "ಬೇಕಂತೆ", "ಬೇಕಾಗಿದೆ", "కావాలి",
+        "కావాలంట", "வேணும்", "வேண்டும்", "வேணுமாம்"}  # VERIFY by native speaker
+CAME = {"ಬಂತು", "ಬಂದ್ಬಿಡ್ತು", "వచ్చేసింది", "வந்துச்சு", "வந்தாச்சு", "வந்துருச்சு"}  # goods came; VERIFY
+MONEY = {"paise", "paisa", "पैसे", "पैसा", "ಹಣ", "ದುಡ್ಡು", "డబ్బు", "డబ్బులు", "பணம்", "காசு", "money", "rupaye",
+         "रुपये", "ರೂಪಾಯಿ", "రూపాయలు", "ரூபாய்"}
+GOODS = {"saamaan", "saman", "samaan", "सामान", "ಸಾಮಾನು", "సామాను", "சாமான்", "பொருள்", "goods", "order", "orders",
+         "ऑर्डर", "ಆರ್ಡರ್", "ఆర్డర్", "ஆர்டர்"}
+TOTAL = {"ottu", "mottam", "mottham", "kul", "कुल", "ಒಟ್ಟು", "మొత్తం", "மொத்தம்", "மொத்த"}
 ARRIVED = {"arrived", "came", "aaya", "aayi", "aaye", "आया", "आई", "आए", "ಬಂದಿದೆ", "ಬಂದಿವೆ", "వచ్చింది", "వచ్చాయి",
            "வந்துவிட்டது", "வந்தது"}
 AA, GAYA = {"aa", "आ"}, {"gaya", "gayi", "gaye", "gya", "gai", "गया", "गई", "गयी", "गए"}
@@ -114,7 +134,8 @@ ITEM_FILLER = set("""liye लिए लिये chahiye चाहिए dena de
     kar कर gaya gayi gaye aa aaya aayi ಬೇಕು ಕೊಡಬೇಕು ಅವರಿಗೆ ఆయనకు அவருக்கு కావాలి ఇవ్వాలి வேண்டும் கொடுக்கணும்""".split())
 KEYWORDS = (set(UNITS) | set(MULT) | set(FRAC) | SAADE | PAUNE | YES | NO | QUERY | GIVE | PAYMENT_KW | CREDIT_KW
             | POSTPOS | TIME | RUPEE | STOP | {"pe", "baaki"} | set().union(*ORDINALS) | ORDER | ARRIVED | AA
-            | GAYA | NEW | SKIP | ITEM_FILLER | HONORIFIC | FILLER)
+            | GAYA | NEW | SKIP | ITEM_FILLER | HONORIFIC | FILLER | GIVE_I | GIVE_HE | PAID_REG | CREDIT_REG | WANT
+            | CAME | TOTAL | {"kiska", "kiski", "kiske", "kaun", "किसका", "किसकी", "कौन"})
 
 
 def tokenize(text: str) -> list[str]:
@@ -248,19 +269,38 @@ def txn_type(tokens: list[str]):
         return "credit"
     if marker in ("se", "से") and (has(TAKE) or has(GOT)):
         return "payment"
-    if has(PAYMENT_KW):
+    if has(GIVE_I):
+        return "credit"
+    if has(GIVE_HE):
+        return "credit" if any(_is_dative_name(t) for t in tokens) else "payment"
+    if has(PAYMENT_KW) or has(PAID_REG):
         return "payment"
-    if has(CREDIT_KW) or any(a in ("baaki", "baki") and b == "pe" for a, b in zip(tokens, tokens[1:])):
+    if has(CREDIT_KW) or has(CREDIT_REG) or any(a in ("baaki", "baki") and b == "pe" for a, b in zip(tokens, tokens[1:])):
         return "credit"
     return None
 
 
+def _is_dative_name(t):
+    """ರಮೇಶ್‌ಗೆ / రమేష్‌కి / ரமேஷுக்கு = 'to Ramesh' (a name word with a dative ending)."""
+    if script_of(t) not in ("kn", "te", "ta") or t in KEYWORDS:
+        return False
+    k = name_key(t)
+    return len(k) >= 5 and k.endswith(_DATIVE)
+
+
 def is_order(tokens):
-    return any(t in ORDER for t in tokens) or any(p in LATER for p in zip(tokens, tokens[1:]))
+    if any(t in ORDER for t in tokens) or any(p in LATER for p in zip(tokens, tokens[1:])):
+        return True
+    # "Ramesh ko 5 kilo cheeni chahiye" / "ರಮೇಶ್‌ಗೆ 2 ಕೆಜಿ ಸಕ್ಕರೆ ಬೇಕು": wanting goods, unless it is about credit/money
+    # "ke liye" is "for", not "took"
+    rest = [t for i, t in enumerate(tokens) if not (t in ("liye", "लिए", "लिये") and i and tokens[i - 1] in ("ke", "के"))]
+    return any(t in WANT for t in rest) and not any(t in CREDIT_KW | PAYMENT_KW | MONEY | RUPEE for t in rest)
 
 
 def is_arrival(tokens):
-    return any(t in ARRIVED for t in tokens) or any(a in AA and b in GAYA for a, b in zip(tokens, tokens[1:]))
+    if any(t in ARRIVED for t in tokens) or any(a in AA and b in GAYA for a, b in zip(tokens, tokens[1:])):
+        return True
+    return any(t in CAME for t in tokens) and not any(t in MONEY for t in tokens)  # "ಹಣ ಬಂತು" is money, not goods
 
 
 def extract_items(tokens, name):
@@ -268,6 +308,20 @@ def extract_items(tokens, name):
     skip = KEYWORDS - set(UNITS) - set(MULT) - set(FRAC) | ITEM_FILLER | {"for"}
     nm = (name or "").lower()
     return " ".join(t for t in tokens if t != nm and (t.isdigit() or (t not in skip and len(t) > 1)))
+
+
+# Undo the last saved action (within 10 s).  kn/te/ta: // VERIFY by native speaker
+UNDO = [("undo",), ("wapas", "lo"), ("galti", "ho", "gayi"), ("galti", "ho", "gaya"), ("cancel", "karo"),
+        ("गलती", "हो", "गई"), ("वापस", "लो"), ("go", "back"), ("that", "was", "wrong"), ("ತಪ್ಪಾಯ್ತು",), ("ವಾಪಸ್",),
+        ("ಅಳಿಸಿ",), ("ತಪ್ಪಾಯಿತು",), ("ತಪ್ಪಾಗಿದೆ",), ("ತಪ್ಪಾಯ್ತು", "ಬಿಡಿ"), ("తప్పు", "అయింది"), ("తప్పైంది",),
+        ("తప్పు", "అయ్యింది"), ("தப்பாயிடுச்சு",), ("தப்பாச்சு",), ("వెనక్కి",), ("తీసేయండి",), ("தப்பா", "போச்சு"), ("தப்பு", "ஆயிடுச்சு"),
+        ("அழிங்க",), ("அழிச்சிடுங்க",)]
+
+
+def is_undo(tokens):
+    if len(tokens) > 5:
+        return False
+    return any(tuple(tokens[i:i + len(u)]) == u for u in UNDO for i in range(len(tokens) - len(u) + 1))
 
 
 @dataclass
@@ -287,6 +341,8 @@ class Parsed:
     skip: bool = False
     phone: str | None = None
     name_strong: bool = False
+    undo: bool = False
+    list_goods: bool = False
 
 
 def parse(text: str) -> Parsed:
@@ -320,6 +376,8 @@ def parse(text: str) -> Parsed:
         skip=short and any(t in SKIP | NO for t in tokens),
         phone=phone,
         name_strong=strong,
+        undo=is_undo(tokens),
+        list_goods=is_query and any(t in GOODS for t in tokens),  # "kiska saamaan baaki hai"
     )
 
 
