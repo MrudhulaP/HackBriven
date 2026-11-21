@@ -41,6 +41,12 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     headers,
   });
 
+  if (response.status === 401 && token && !endpoint.startsWith('/auth/')) {
+    // Expired session: the backend no longer falls back to the demo shop, so log in again.
+    clearAuthToken();
+    window.location.href = '/welcome';
+  }
+
   if (!response.ok) {
     let errMsg = `Request failed (${response.status})`;
     try {

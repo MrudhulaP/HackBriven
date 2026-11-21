@@ -20,8 +20,13 @@ def get_current_user(
             user = db.query(User).filter(User.id == payload["sub"]).first()
             if user:
                 return user
+        # A bad or expired token must not silently write into the demo shop.
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session expired. Please log in again."
+        )
 
-    # Check for demo user fallback if no valid token
+    # Demo fallback only when no token was sent at all
     demo_user = db.query(User).filter(User.mobile == "9876543210").first()
     if demo_user:
         return demo_user

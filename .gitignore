@@ -46,3 +46,9 @@ dist-ssr/
 .idea/
 *.swp
 *.swo
+
+# Flutter app source (overrides the Python lib/ rule above)
+!mobile/lib/
+
+# Backend database folder (accounts and ledgers), never commit
+backend/data/
