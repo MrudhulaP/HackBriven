@@ -30,7 +30,7 @@ class CustomersScreen extends StatelessWidget {
                   title: Text(row.customer.name,
                       style: const TextStyle(fontSize: 18)),
                   trailing: Text(
-                    '₹${row.balance}',
+                    '₹${formatRupees(row.balance)}',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -68,7 +68,7 @@ class CustomerHistoryScreen extends StatelessWidget {
     final entries = store.entriesFor(customer.id);
     final balance = store.balanceOf(customer.id);
     return Scaffold(
-      appBar: AppBar(title: Text('${customer.name}   ₹$balance')),
+      appBar: AppBar(title: Text('${customer.name}   ₹${formatRupees(balance)}')),
       body: ListView.builder(
         itemCount: entries.length,
         itemBuilder: (_, i) {
@@ -80,7 +80,7 @@ class CustomerHistoryScreen extends StatelessWidget {
               isCredit ? Icons.arrow_upward : Icons.arrow_downward,
               color: isCredit ? Colors.red : Colors.green,
             ),
-            title: Text('${isCredit ? '+' : '-'} ₹${e.amount}',
+            title: Text('${isCredit ? '+' : '-'} ₹${formatRupees(e.paise)}',
                 style: const TextStyle(fontSize: 18)),
             subtitle: Text(raw == null || raw.isEmpty
                 ? _fmt(e.createdAt)

@@ -110,7 +110,7 @@ class VoiceSession {
     final entry = await store.addEntry(
       customerName: e.customerName!,
       type: e.type!,
-      amount: e.amount!,
+      paise: e.amount! * 100, // spoken amounts are whole rupees
       rawText: e.rawText,
     );
     final customer = store.customerById(entry.customerId)!;
@@ -118,7 +118,7 @@ class VoiceSession {
     _reset();
     return SessionReply(
       'saved',
-      args: {'name': customer.name, 'balance': '$balance'},
+      args: {'name': customer.name, 'balance': formatRupees(balance)},
       stage: stage,
       savedNow: true,
     );
@@ -135,11 +135,11 @@ class VoiceSession {
       case LedgerIntent.queryBalance:
         final name = p.customerName;
         if (name == null) {
-          return _reply('totalDue', {'amount': '${store.totalOutstanding()}'});
+          return _reply('totalDue', {'amount': formatRupees(store.totalOutstanding())});
         }
         final c = store.findCustomer(name);
         if (c == null) return _reply('customerNotFound', {'name': name});
-        return _reply('balanceIs', {'name': c.name, 'balance': '${store.balanceOf(c.id)}'});
+        return _reply('balanceIs', {'name': c.name, 'balance': formatRupees(store.balanceOf(c.id))});
       case LedgerIntent.addCredit:
       case LedgerIntent.recordPayment:
         pending = PendingEntry(

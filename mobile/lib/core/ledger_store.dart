@@ -53,18 +53,18 @@ class LedgerStore {
   Future<LedgerEntry> addEntry({
     required String customerName,
     required EntryType type,
-    required int amount,
+    required int paise,
     String? rawText,
   }) async {
-    if (amount <= 0) {
-      throw ArgumentError.value(amount, 'amount', 'must be greater than 0');
+    if (paise <= 0) {
+      throw ArgumentError.value(paise, 'paise', 'must be greater than 0');
     }
     final c = await getOrCreateCustomer(customerName);
     final e = LedgerEntry(
       id: _newId(),
       customerId: c.id,
       type: type,
-      amount: amount,
+      paise: paise,
       createdAt: DateTime.now(),
       rawText: rawText,
     );
@@ -85,17 +85,17 @@ class LedgerStore {
       _entries.where((e) => e.customerId == customerId).toList()
         ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
-  /// Positive = customer owes the shop. Negative = customer paid in advance.
+  /// In paise. Positive = customer owes the shop. Negative = customer paid in advance.
   int balanceOf(String customerId) {
     var total = 0;
     for (final e in _entries) {
       if (e.customerId != customerId) continue;
-      total += e.type == EntryType.credit ? e.amount : -e.amount;
+      total += e.type == EntryType.credit ? e.paise : -e.paise;
     }
     return total;
   }
 
-  /// Sum of all positive balances.
+  /// Sum of all positive balances, in paise.
   int totalOutstanding() {
     var total = 0;
     for (final c in _customers) {

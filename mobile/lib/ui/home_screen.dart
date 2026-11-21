@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/language_detector.dart';
 import '../core/ledger_store.dart';
 import '../core/models.dart';
 import '../core/voice_session.dart';
@@ -15,7 +16,11 @@ import 'customers_screen.dart';
 class HomeScreen extends StatefulWidget {
   final LedgerStore store;
 
-  const HomeScreen({super.key, required this.store});
+  /// Logs out; returns how many entries are still only on this phone
+  /// (logout is refused while any are). Null hides the button.
+  final Future<int> Function()? onLogout;
+
+  const HomeScreen({super.key, required this.store, this.onLogout});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -73,7 +78,12 @@ class _HomeScreenState extends State<HomeScreen> {
     if (clean.isEmpty || _busy) return;
     _busy = true;
     try {
-      setState(() => _heard = clean);
+      // Reply in whatever language was just spoken, whatever the picker says.
+      final spoken = LanguageDetector.detect(clean);
+      setState(() {
+        _heard = clean;
+        if (spoken != null) _lang = kLanguages.firstWhere((l) => l.code == spoken);
+      });
       final reply = await _session.handle(clean);
       await _show(reply);
     } finally {
@@ -130,6 +140,11 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Future<void> _logout() async {
+    final left = await widget.onLogout!();
+    if (left > 0) _showError(_t('uiUnsynced', {'count': '$left'}));
+  }
+
   Future<void> _confirm() async => _show(await _session.confirm());
 
   Future<void> _cancel() async => _show(_session.cancel());
@@ -179,6 +194,12 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
+          if (widget.onLogout != null)
+            IconButton(
+              icon: const Icon(Icons.logout),
+              tooltip: _t('uiLogout'),
+              onPressed: _listening ? null : _logout,
+            ),
         ],
       ),
       body: SafeArea(

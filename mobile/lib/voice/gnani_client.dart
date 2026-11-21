@@ -38,15 +38,14 @@ class GnaniClient {
       : _http = client ?? http.Client();
 
   /// App language code -> Gnani language_code.
-  /// prisma-v3.0 accepts up to 4 comma-separated languages, so we add en-IN
-  /// to every Indian language to handle code-mixed speech (Hinglish etc.).
-  static String sttLanguageCode(String appLang) => switch (appLang) {
-        'hi' => 'hi-IN,en-IN',
-        'kn' => 'kn-IN,en-IN',
-        'te' => 'te-IN,en-IN',
-        'ta' => 'ta-IN,en-IN',
-        _ => 'en-IN',
-      };
+  /// prisma-v3.0 accepts up to 4 comma-separated languages and detects which
+  /// one was spoken, so we send the current language, English (for code-mixed
+  /// speech), then the others. With 5 app languages, one is always left out:
+  /// Tamil, unless Tamil is the current language.
+  static String sttLanguageCode(String appLang) => {appLang, 'en', 'hi', 'kn', 'te', 'ta'}
+      .take(4)
+      .map((c) => '$c-IN')
+      .join(',');
 
   /// [wav] = 16 kHz mono WAV, max 30 seconds. Returns '' if no speech.
   Future<String> transcribe(Uint8List wav, {required String appLang}) async {

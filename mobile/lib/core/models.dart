@@ -31,8 +31,8 @@ class LedgerEntry {
   final String customerId;
   final EntryType type;
 
-  /// Whole rupees. Always > 0. Never use double for money.
-  final int amount;
+  /// In paise (₹1 = 100). Always > 0. Never use double for money.
+  final int paise;
   final DateTime createdAt;
 
   /// What the shopkeeper actually said or typed.
@@ -42,7 +42,7 @@ class LedgerEntry {
     required this.id,
     required this.customerId,
     required this.type,
-    required this.amount,
+    required this.paise,
     required this.createdAt,
     this.rawText,
   });
@@ -51,7 +51,7 @@ class LedgerEntry {
         'id': id,
         'customerId': customerId,
         'type': type.name,
-        'amount': amount,
+        'paise': paise,
         'createdAt': createdAt.toIso8601String(),
         'rawText': rawText,
       };
@@ -60,8 +60,28 @@ class LedgerEntry {
         id: j['id'] as String,
         customerId: j['customerId'] as String,
         type: EntryType.values.byName(j['type'] as String),
-        amount: j['amount'] as int,
+        // Caches written before paise existed stored whole rupees under 'amount'.
+        paise: j['paise'] as int? ?? (j['amount'] as int) * 100,
         createdAt: DateTime.parse(j['createdAt'] as String),
         rawText: j['rawText'] as String?,
       );
+}
+
+/// 34050 -> "340.50", 34000 -> "340", -2000 -> "-20". For showing and speaking.
+String formatRupees(int paise) {
+  final a = paise.abs();
+  final p = a % 100;
+  final s = p == 0 ? '${a ~/ 100}' : '${a ~/ 100}.${p.toString().padLeft(2, '0')}';
+  return paise < 0 ? '-$s' : s;
+}
+
+/// 34050 -> "340.50". Exact decimal string for the backend.
+String paiseToDecimal(int paise) =>
+    '${paise ~/ 100}.${(paise % 100).toString().padLeft(2, '0')}';
+
+/// "340.5" / "340.50" / 340 -> 34050. Parses the string, never via double.
+int paiseFromDecimal(Object value) {
+  final parts = '$value'.trim().split('.');
+  final frac = parts.length > 1 ? '${parts[1]}00'.substring(0, 2) : '00';
+  return int.parse(parts[0]) * 100 + int.parse(frac);
 }

@@ -64,8 +64,9 @@ void main() {
   });
 
   test('language codes', () {
-    expect(GnaniClient.sttLanguageCode('kn'), 'kn-IN,en-IN');
-    expect(GnaniClient.sttLanguageCode('en'), 'en-IN');
+    expect(GnaniClient.sttLanguageCode('kn'), 'kn-IN,en-IN,hi-IN,te-IN');
+    expect(GnaniClient.sttLanguageCode('en'), 'en-IN,hi-IN,kn-IN,te-IN');
+    expect(GnaniClient.sttLanguageCode('ta'), 'ta-IN,en-IN,hi-IN,kn-IN');
   });
 
   test('fixWavHeader writes real RIFF and data sizes', () {
