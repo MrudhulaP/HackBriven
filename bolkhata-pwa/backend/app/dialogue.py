@@ -312,6 +312,10 @@ class Conversation:
             self.p["amount"] = p.amount
             self._add_raw(text)
             return self._confirm()
+        if p.yes and p.amount is not None and self.p["intent"] == "txn" and p.amount != self.p["amount"]:
+            self.p["amount"] = p.amount  # "haan 400" while the card says 300: correct and ask again, never save
+            self._add_raw(text)
+            return self._confirm()
         if p.yes:
             return self._save()
         if p.no:

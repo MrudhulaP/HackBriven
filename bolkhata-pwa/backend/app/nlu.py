@@ -58,7 +58,7 @@ YES = {"haan", "ha", "haa", "han", "haanji", "ok", "okay", "yes", "yeah", "sahi"
        # English yes/ok/save as Gnani writes them inside kn/te/ta speech
        "ಓಕೆ", "ಯೆಸ್", "ಸೇವ್", "ఓకే", "ఒకే", "యెస్", "సేవ్", "ஓகே", "யெஸ்", "சேவ்",
        "ஆமாம்", "ஆமாங்க", "சரி", "ಸರಿ", "సరే"}
-NO = {"nahi", "nahin", "na", "no", "cancel", "mat", "galat", "नहीं", "नही", "ना", "ಇಲ್ಲ", "కాదు", "இல்லை", "कैंसल", "नो", "ಕ್ಯಾನ್ಸಲ್", "ಕ್ಯಾನ್ಸಲ್", "క్యాన్సిల్", "క్యాన్సల్", "கேன்சல்", "கேன்சல்", "ಬೇಡ", "ಬೇಡಾ", "వద్దు", "வேண்டாம்"}
+NO = {"nahi", "nahin", "na", "no", "not", "wrong", "cancel", "mat", "galat", "नहीं", "नही", "ना", "ಇಲ್ಲ", "కాదు", "இல்லை", "कैंसल", "नो", "ಕ್ಯಾನ್ಸಲ್", "ಕ್ಯಾನ್ಸಲ್", "క్యాన్సిల్", "క్యాన్సల్", "கேன்சல்", "கேன்சல்", "ಬೇಡ", "ಬೇಡಾ", "వద్దు", "வேண்டாம்"}
 QUERY = {"balance", "kitna", "kitne", "kitni", "baaki", "baki", "total", "hisaab", "hisab", "owe", "owes", "due",
          "बाकी", "बाक़ी", "कितना", "कितने", "कितनी", "हिसाब", "टोटल", "बैलेंस", "ಟೋಟಲ್", "ಬ್ಯಾಲೆನ್ಸ್", "టోటల్", "బ్యాలెన్స్",
          "டோட்டல்", "பேலன்ஸ்", "ಎಷ್ಟು", "ಬಾಕಿ", "ఎంత", "బాకీ", "எவ்வளவு", "நிலுவை"}
@@ -296,6 +296,8 @@ def parse(text: str) -> Parsed:
     amount = max(nums) if nums else None
     first = tokens[0] if tokens else ""
     short = len(tokens) <= 3
+    # A "no" word anywhere beats a yes: "theek nahi hai", "ಸರಿ ಇಲ್ಲ", "not correct". Bare "na" counts only on its own.
+    negated = any(t in NO and t not in ("na", "ना") for t in tokens)
     arrival = is_arrival(tokens)
     order = not arrival and is_order(tokens)
     if order or arrival:
@@ -308,9 +310,9 @@ def parse(text: str) -> Parsed:
         name=name,
         txn_type=None if (is_query or order or arrival) else txn_type(tokens),
         is_query=is_query,
-        yes=short and first in YES,
-        no=short and first in NO,
-        correction=first in NO and amount is not None,
+        yes=short and first in YES and not negated,
+        no=short and (first in NO or negated),
+        correction=(first in NO or negated) and amount is not None,
         order=order,
         arrival=arrival,
         items=extract_items(tokens, name) if (order or arrival) else "",

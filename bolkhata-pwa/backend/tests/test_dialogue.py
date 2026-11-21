@@ -1,3 +1,5 @@
+import pytest
+
 from app.dialogue import Conversation
 
 
@@ -179,3 +181,42 @@ def test_new_full_command_replaces_pending_question(store):
     assert c.handle("Ramesh ne udhaar liya")["state"] == "askAmount"
     r = c.handle("Suresh took 500 on credit")
     assert r["key"] == "confirmCreditNew" and r["card"]["name"] == "Suresh" and r["card"]["amount"] == 500
+
+
+@pytest.mark.parametrize("text", ["theek nahi hai", "sahi nahi", "not correct", "ಸರಿ ಇಲ್ಲ", "సరే కాదు", "சரி இல்லை", "ok nahi"])
+def test_negated_yes_never_saves(store, text):
+    c = Conversation(store)
+    before = len(store.entries())
+    c.handle("Lakshmi ne 300 udhaar liya")
+    r = c.handle(text)
+    assert not r["saved"] and r["key"] == "cancelled" and len(store.entries()) == before
+
+
+@pytest.mark.parametrize("text", ["haan", "theek hai", "yes", "haan haan", "ಹೌದು", "ஆமாம்"])
+def test_plain_yes_still_saves(store, text):
+    c = Conversation(store)
+    c.handle("Lakshmi ne 300 udhaar liya")
+    assert c.handle(text)["saved"]
+
+
+def test_haan_na_is_yes(store):
+    c = Conversation(store)
+    c.handle("Lakshmi ne 300 udhaar liya")
+    assert c.handle("haan na")["saved"]  # bare 'na' as a filler is not a no
+
+
+def test_yes_with_different_amount_corrects_without_saving(store):
+    c = Conversation(store)
+    before = len(store.entries())
+    c.handle("Lakshmi ne 300 udhaar liya")
+    r = c.handle("haan 400")
+    assert r["state"] == "confirming" and r["card"]["amount"] == 400 and len(store.entries()) == before
+    r = c.handle("haan")
+    assert r["saved"] and store.find("Lakshmi")[0]["balance"] == 520
+
+
+def test_yes_with_same_amount_saves(store):
+    c = Conversation(store)
+    c.handle("Lakshmi ne 300 udhaar liya")
+    r = c.handle("haan 300")
+    assert r["saved"] and store.find("Lakshmi")[0]["balance"] == 420
