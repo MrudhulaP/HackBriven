@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react'
 import { LANG_NAMES, api } from './App.jsx'
 
+// A failed load shows a message with Retry instead of an empty screen.
+function LoadError({ t, retry }) {
+  return <p className="notice" role="alert">{t('failed')} <button className="btn" onClick={retry}>↻ {t('retry')}</button></p>
+}
+
 const time = (iso) => new Date(iso).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
 const money = (n) => `₹${n}`
 
@@ -10,7 +15,9 @@ export function Customers({ t, uiLang, open, setOpen }) {
   const [list, setList] = useState([])
   const [q, setQ] = useState('')
   const [byBalance, setByBalance] = useState(true)
-  useEffect(() => { api('/api/customers').then(setList) }, [open])
+  const [err, setErr] = useState(false)
+  const load = () => { setErr(false); api('/api/customers').then(setList).catch(() => setErr(true)) }
+  useEffect(load, [open])
 
   if (open) return <History t={t} id={open} uiLang={uiLang} back={() => setOpen(null)} />
   const shown = list
@@ -18,6 +25,7 @@ export function Customers({ t, uiLang, open, setOpen }) {
     .sort((a, b) => (byBalance ? b.balance - a.balance : a.name.localeCompare(b.name)))
   return (
     <div className="page">
+      {err && <LoadError t={t} retry={load} />}
       <div className="row">
         <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('search')} aria-label={t('search')} />
         <button className="btn" onClick={() => setByBalance(!byBalance)}>{byBalance ? t('sortBalance') : t('sortName')}</button>
@@ -43,7 +51,13 @@ function History({ t, id, uiLang, back }) {
   const [note, setNote] = useState('')
   const [err, setErr] = useState('')
   const [ok, setOk] = useState(false)
-  useEffect(() => { api(`/api/customers/${id}`).then((x) => { setC(x); setPhone(x.phone || ''); setNote(x.note || '') }) }, [id])
+  const [loadErr, setLoadErr] = useState(false)
+  const load = () => {
+    setLoadErr(false)
+    api(`/api/customers/${id}`).then((x) => { setC(x); setPhone(x.phone || ''); setNote(x.note || '') }).catch(() => setLoadErr(true))
+  }
+  useEffect(load, [id])
+  if (loadErr) return <div className="page"><button className="btn" onClick={back}>← {t('back')}</button><LoadError t={t} retry={load} /></div>
   if (!c) return null
 
   async function saveDetails(e) {
@@ -92,13 +106,16 @@ function History({ t, id, uiLang, back }) {
 export function Orders({ t, uiLang }) {
   const [list, setList] = useState(null)
   const [err, setErr] = useState('')
-  const load = () => api('/api/orders').then(setList)
-  useEffect(() => { load() }, [])
+  const load = () => { setErr(''); api('/api/orders').then(setList).catch(() => setErr('load')) }
+  useEffect(load, [])
+  if (err === 'load') return <LoadError t={t} retry={load} />
   if (!list) return null
 
   async function setStatus(o, status) {
-    await api(`/api/orders/${o.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) })
-    load()
+    try {
+      await api(`/api/orders/${o.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) })
+      load()
+    } catch (e) { setErr(e.message) }
   }
   async function notify(o) {
     try {
@@ -136,7 +153,10 @@ export function Orders({ t, uiLang }) {
 export function Ledger({ t }) {
   const [data, setData] = useState(null)
   const [f, setF] = useState({ q: '', type: '', lang: '' })
-  useEffect(() => { api('/api/ledger').then(setData) }, [])
+  const [err, setErr] = useState(false)
+  const load = () => { setErr(false); api('/api/ledger').then(setData).catch(() => setErr(true)) }
+  useEffect(load, [])
+  if (err) return <LoadError t={t} retry={load} />
   if (!data) return null
   const rows = data.entries.filter((e) =>
     e.customer.toLowerCase().includes(f.q.toLowerCase()) && (!f.type || e.type === f.type) && (!f.lang || e.language === f.lang))
@@ -182,12 +202,18 @@ export function Ledger({ t }) {
 export function Settings({ t, meta }) {
   const [s, setS] = useState(null)
   const [done, setDone] = useState(false)
-  useEffect(() => { api('/api/settings').then(setS) }, [])
+  const [err, setErr] = useState('')
+  const load = () => { setErr(''); api('/api/settings').then(setS).catch(() => setErr('load')) }
+  useEffect(load, [])
+  if (err === 'load') return <LoadError t={t} retry={load} />
   if (!s) return null
   async function save(e) {
     e.preventDefault()
-    setS(await api('/api/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(s) }))
-    setDone(true)
+    try {
+      setS(await api('/api/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(s) }))
+      setDone(true)
+      setErr('')
+    } catch (e2) { setErr(e2.message) }
   }
   const field = (k) => ({ value: s[k], onChange: (e) => { setS({ ...s, [k]: e.target.value }); setDone(false) } })
   return (
@@ -208,6 +234,7 @@ export function Settings({ t, meta }) {
       </label>
       <button className="btn primary wide">{t('save')}</button>
       {done && <p className="notice ok">{t('saved')}</p>}
+      {err && err !== 'load' && <p className="notice">{err}</p>}
       <p className="muted">{meta.seed_demo ? t('demoOn') : t('demoOff')}</p>
     </form>
   )

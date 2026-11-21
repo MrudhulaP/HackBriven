@@ -134,3 +134,39 @@ def test_money_questions_answered_by_rules_in_english(store):
     r = c.handle("How much money did I collect this week?")
     assert r["key"] == "collectionsWeek" and not c.soft_miss
     assert Conversation(store).handle("Save Arjun's number as 9999999999.")["lang"] == "en"
+
+
+def test_bad_command_keeps_connection_alive(db, monkeypatch):
+    """A crash inside one request returns an error for that request; the next request still works."""
+    from app import dialogue
+    with TestClient(main.create_app(db, brain=None)) as client, client.websocket_connect("/ws/voice") as ws:
+        ws.send_text(json.dumps({"type": "start", "engine": "browser", "lang": "auto"}))
+        while json.loads(ws.receive_text())["type"] != "reply":
+            pass
+        real = dialogue.Conversation.handle_smart
+
+        async def boom(self, *a, **k):
+            raise RuntimeError("simulated failure")
+        monkeypatch.setattr(dialogue.Conversation, "handle_smart", boom)
+        ws.send_text(json.dumps({"type": "text", "text": "Lakshmi ka baaki", "id": "c1"}))
+        while (m := json.loads(ws.receive_text()))["type"] != "error":
+            pass
+        assert m["req"] == "c1"
+        monkeypatch.setattr(dialogue.Conversation, "handle_smart", real)
+        ws.send_text(json.dumps({"type": "text", "text": "Lakshmi ka baaki", "id": "c2"}))
+        while (m := json.loads(ws.receive_text()))["type"] != "reply":
+            pass
+        assert m["req"] == "c2" and "120" in m["text"]
+        ws.send_text("not json")  # garbage is answered with an error, not a dropped connection
+        while (m := json.loads(ws.receive_text()))["type"] != "error":
+            pass
+        ws.send_text(json.dumps({"type": "text", "text": "Lakshmi ka baaki", "id": "c3"}))
+        while (m := json.loads(ws.receive_text()))["type"] != "reply":
+            pass
+        assert m["req"] == "c3"  # still connected and working
+
+
+def test_client_error_report_is_logged(db, caplog):
+    with TestClient(main.create_app(db, brain=None)) as client:
+        assert client.post("/api/client-error", json={"kind": "render", "message": "x is undefined"}).json()["ok"]
+    assert "x is undefined" in caplog.text

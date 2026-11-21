@@ -4,6 +4,7 @@ import contextlib
 import csv
 import io
 import json
+import logging
 import os
 import time
 from datetime import datetime, timedelta, timezone
@@ -22,6 +23,7 @@ from .prompts import ARRIVED_MSG, REMINDER, UI, say
 from .store import Crypto, Store
 
 IST = timezone(timedelta(hours=5, minutes=30))
+log = logging.getLogger("bolkhata")
 MAX_REST_BYTES = 30 * 16000 * 2  # Gnani REST takes 30 s max
 
 
@@ -140,6 +142,13 @@ def create_app(db=None, brain="env") -> FastAPI:
         return Response("﻿" + out.getvalue(), media_type="text/csv; charset=utf-8",  # BOM so Excel shows Hindi
                         headers={"Content-Disposition": "attachment; filename=bolkhata-ledger.csv"})
 
+    @app.post("/api/client-error")
+    def client_error(body: dict):
+        """The screen reports its own crashes here (shown in the backend log), so blank-screen causes are visible."""
+        log.error("client %s error at %s: %s\n%s", str(body.get("kind"))[:20], str(body.get("url"))[:100],
+                  str(body.get("message"))[:500], str(body.get("stack"))[:2000])
+        return {"ok": True}
+
     @app.get("/api/settings")
     def get_settings():
         return store.settings()
@@ -217,12 +226,30 @@ class VoiceSession:
                 if msg.get("bytes") is not None:
                     await self.on_audio(msg["bytes"])
                 elif msg.get("text"):
-                    await self.on_command(json.loads(msg["text"]))
+                    await self.safe_command(msg["text"])
         except WebSocketDisconnect:
             pass
         finally:
             await self.stop_tts()
             await self.close_stt()
+
+    async def safe_command(self, raw):
+        """One bad request must never close the connection (that loses the conversation and leaves the screen
+        waiting). Log it, reset the half-finished turn, and tell the screen that this request failed."""
+        req = ""
+        try:
+            m = json.loads(raw)
+            req = str(m.get("id") or "") if isinstance(m, dict) else ""
+            if not isinstance(m, dict):
+                raise ValueError("command must be a JSON object")
+            await self.on_command(m)
+        except (WebSocketDisconnect, asyncio.CancelledError):
+            raise
+        except Exception:  # noqa: BLE001
+            log.exception("voice command failed")
+            self.conv.state, self.conv.p = "idle", {}
+            with contextlib.suppress(Exception):
+                await self.send({"type": "error", "req": req})
 
     async def on_command(self, m):
         t = m.get("type")
@@ -317,7 +344,12 @@ class VoiceSession:
                         await self.stop_tts()
                     await self.send({"type": "speech_start"})
                 elif t == "transcript" and (m.get("text") or "").strip():
-                    await self.on_transcript(m["text"].strip(), m.get("detected_language_code"), m.get("latency"))
+                    try:
+                        await self.on_transcript(m["text"].strip(), m.get("detected_language_code"), m.get("latency"))
+                    except Exception:  # noqa: BLE001 - one bad sentence must not stop listening
+                        log.exception("voice turn failed")
+                        self.conv.state, self.conv.p = "idle", {}
+                        await self.send({"type": "error", "req": f"v{self.voice_seq}"})
                 elif t == "error":
                     if self.bias_pending:
                         self.bias_pending = False

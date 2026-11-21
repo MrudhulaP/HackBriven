@@ -116,6 +116,17 @@ Seed data (synthetic): Ramesh (Gandhi Nagar) ₹450, Ramesh (Station Road) ₹20
 - **Contacts.** "Save Arjun's number as 99999 99999", "Add Priya's number …", "Arjun ka mobile number … save karo", "Update Ramesh's phone number to …", and the same in Kannada/Telugu/Tamil. A new name becomes a new customer on confirm. The number is read back in two groups. If a number already belongs to someone else, the app says so before saving. A missing number or name is asked for. Phone numbers are stored as text and are never an amount.
 - **Quick questions answered from the ledger:** "Show today's collections", "How much did I collect this week?", "Who owes me the most?"
 
+## Staying usable (no blank screen, never stuck)
+
+- **Service worker** (`frontend/public/sw.js`): caches only good responses. It never answers a script or stylesheet request with the HTML page (that caused a blank white screen when the server was briefly unreachable or after a rebuild). Each version clears the old cache and takes over straight away.
+- **Error boundaries:** a crash in one screen shows "Something went wrong… Try again" instead of a white page. The real error is sent to `POST /api/client-error` and appears in the backend log.
+- **Never stuck "Working on it…":**
+  - a command typed while reconnecting is sent as soon as the connection is back;
+  - with no reply in 15 s, the screen offers **Try again**;
+  - a dropped connection resets listening and processing;
+  - an error inside one request returns an error for that request only, and the connection and conversation stay alive.
+- **Every screen** shows a message with Retry if its data can't load.
+
 ## Undo
 
 After any save (credit, payment, new customer, phone number, order, arrival), an **↩ Undo** button shows for 10 seconds. Saying "undo", "galti ho gayi", "wapas lo", "ತಪ್ಪಾಯ್ತು", "తప్పు అయింది" or "தப்பா போச்சு" does the same. It reverts only that last action. After 10 seconds nothing changes, and the app says so.

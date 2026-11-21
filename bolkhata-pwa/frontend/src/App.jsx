@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { ENGINES, VoiceClient } from './voice.js'
 import { Customers, Ledger, Orders, Settings } from './screens.jsx'
+import { ErrorBoundary } from './ErrorBoundary.jsx'
 
 export const LANG_NAMES = { auto: 'Auto', hi: 'हिन्दी', en: 'English', kn: 'ಕನ್ನಡ', te: 'తెలుగు', ta: 'தமிழ்' }
 const ENGINE_NAMES = { live: 'Gnani Live', rest: 'Gnani REST', browser: 'Browser' }
@@ -67,9 +68,18 @@ export default function App() {
       case 'ignored':
         patch({ thinking: false })
         break
+      case 'error':
+        patch({ thinking: false, failed: true }) // this request failed; the app stays usable
+        break
+      case 'disconnected':
+        setConv((c) => ({ ...c, listening: false, speaking: false, offline: true }))
+        break
+      case 'connected':
+        patch({ offline: false })
+        break
       case 'reply':
         setUiLang(m.lang)
-        if (!m.evening) patch({ reply: m, notice: '', thinking: false })
+        if (!m.evening) patch({ reply: m, notice: '', thinking: false, failed: false })
         if (m.source) setConv((c) => ({ ...c, latency: { ...c.latency, source: m.source, brain: m.brain_ms } }))
         break
       case 'latency':
@@ -98,6 +108,11 @@ export default function App() {
     voice.current.connect()
     setStarted(true)
   }
+  useEffect(() => {
+    if (!conv.thinking) return
+    const id = setTimeout(() => patch({ thinking: false, failed: true }), 15000) // no reply in 15 s: let the user retry
+    return () => clearTimeout(id)
+  }, [conv.thinking, conv.transcript])
   const onEventRef = useRef(onEvent)
   onEventRef.current = onEvent
 
@@ -154,6 +169,7 @@ export default function App() {
       </header>
 
       <main>
+       <ErrorBoundary key={tab} message={t('failed')} retry={t('retry')}>
         {evening && tab === 'home' && (
           <div className="evening" role="status">
             <b>🌙 {t('eveningTitle')}</b>
@@ -171,12 +187,13 @@ export default function App() {
         )}
         {tab === 'home' && (started
           ? <Home t={t} conv={conv} voice={voice.current} toggleMic={toggleMic} lang={lang} uiLang={uiLang}
-              onSubmit={(said) => patch({ transcript: said, reply: null, thinking: true })} />
+              onSubmit={(said) => patch({ transcript: said, reply: null, thinking: true, failed: false, lastSaid: said })} />
           : <div className="start"><p>{meta.ui[uiLang].tapToSpeak}</p><button className="mic" onClick={start} aria-label="Start">🎤</button></div>)}
         {tab === 'customers' && <Customers t={t} uiLang={uiLang} open={openCustomer} setOpen={setOpenCustomer} />}
         {tab === 'orders' && <Orders t={t} uiLang={uiLang} />}
         {tab === 'ledger' && <Ledger t={t} />}
         {tab === 'settings' && <Settings t={t} meta={meta} />}
+       </ErrorBoundary>
       </main>
 
       <nav className="tabs">
@@ -247,6 +264,15 @@ function Home({ t, conv, voice, toggleMic, lang, uiLang, onSubmit }) {
 
       {conv.notice && <p className="notice" role="status">{conv.notice}</p>}
       {conv.transcript && <p className="transcript">“{conv.transcript}”</p>}
+      {conv.offline && <p className="notice" role="status">{t('offline')}</p>}
+      {conv.failed && !conv.thinking && (
+        <div className="reply failed" role="alert">
+          {t('failed')}
+          {conv.lastSaid && (
+            <button className="btn" onClick={() => { onSubmit(conv.lastSaid); voice.sendText(conv.lastSaid) }}>↻ {t('retry')}</button>
+          )}
+        </div>
+      )}
       {conv.thinking && !r && <div className="reply thinking" aria-live="polite">{t('thinking')}</div>}
       {r && <div className={`reply ${r.saved ? 'ok' : ''}`} aria-live="polite">{r.text}</div>}
       {r?.notify && <button className="btn primary wide" onClick={() => notify(r.notify)}>💬 {t('notifyCustomer')}</button>}

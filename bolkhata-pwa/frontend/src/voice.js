@@ -25,10 +25,17 @@ export class VoiceClient {
     ws.onopen = () => {
       this.onEvent({ type: 'connected' })
       this.sendJson({ type: 'start', engine: this.engine, lang: this.lang, bargeIn: this.bargeIn })
+      if (this.queued) { // a command typed while reconnecting is sent now, not lost
+        const q = this.queued
+        this.queued = null
+        this.sendJson(q)
+      }
     }
     ws.onmessage = (e) => (typeof e.data === 'string' ? this.onJson(JSON.parse(e.data)) : this.onAudio(e.data))
     ws.onclose = () => {
       if (this.ws !== ws) return
+      if (this.micOn) this.stopMicHardware() // never stay "listening" on a dead connection
+      this.stopPlayback()
       this.onEvent({ type: 'disconnected' })
       setTimeout(() => this.ws === ws && this.connect(), 1500)
     }
@@ -51,7 +58,9 @@ export class VoiceClient {
 
   sendText(text) {
     this.t0 = performance.now()
-    this.sendJson({ type: 'text', text, id: this.newReq() })
+    const msg = { type: 'text', text, id: this.newReq() }
+    if (this.ws?.readyState === 1) this.sendJson(msg)
+    else this.queued = msg // reconnecting: send it as soon as the socket is back (only the newest one)
   }
 
   tap(action, extra = {}) {
@@ -67,6 +76,7 @@ export class VoiceClient {
         break
       case 'reply':
       case 'ignored':
+      case 'error':
         if (m.req && m.req !== this.latestReq) return // reply to an older request: never show it
         if (m.type === 'reply') this.replyLang = m.lang
         break
