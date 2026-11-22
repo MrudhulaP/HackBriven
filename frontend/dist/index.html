@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#1B4332" />
+    <meta name="description" content="BolKhata - The Ledger You Talk To. Multilingual Voice AI Digital Ledger for Indian Kirana Retailers." />
+    <link rel="manifest" href="/manifest.json" />
+    <title>BolKhata | The Ledger You Talk To</title>
+    <script type="module" crossorigin src="/assets/index-Sxk-fmOT.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-CiZLbEhV.css">
+  </head>
+  <body class="bg-cream-100 text-charcoal-900 font-sans antialiased min-h-screen selection:bg-forest-200 selection:text-forest-900">
+    <div id="root"></div>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch(() => {});
+        });
+      }
+    </script>
+  </body>
+</html>

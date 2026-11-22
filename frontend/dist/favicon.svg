@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <rect width="64" height="64" rx="14" fill="#1B4332"/>
+  <!-- Ledger Book Base -->
+  <path d="M16 16C16 14.8954 16.8954 14 18 14H46C47.1046 14 48 14.8954 48 16V48C48 49.1046 47.1046 50 46 50H18C16.8954 50 16 49.1046 16 48V16Z" fill="#F8F6F0"/>
+  <!-- Ledger Spine -->
+  <path d="M16 14H22V50H16V14Z" fill="#52B788"/>
+  <!-- Ruled lines on ledger page -->
+  <line x1="26" y1="22" x2="42" y2="22" stroke="#40916C" stroke-width="2" stroke-linecap="round"/>
+  <line x1="26" y1="28" x2="42" y2="28" stroke="#40916C" stroke-width="2" stroke-linecap="round"/>
+  <line x1="26" y1="34" x2="38" y2="34" stroke="#40916C" stroke-width="2" stroke-linecap="round"/>
+  <!-- Voice Mic / Soundwave badge -->
+  <circle cx="42" cy="42" r="12" fill="#F4A261"/>
+  <path d="M42 36C40.8954 36 40 36.8954 40 38V42C40 43.1046 40.8954 44 42 44C43.1046 44 44 43.1046 44 42V38C44 36.8954 43.1046 36 42 36Z" fill="#081C15"/>
+  <path d="M38 41V42C38 44.2091 39.7909 46 42 46C44.2091 46 46 44.2091 46 42V41" stroke="#081C15" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="42" y1="46" x2="42" y2="48" stroke="#081C15" stroke-width="1.5" stroke-linecap="round"/>
+</svg>
