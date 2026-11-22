@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 60" fill="none">
+  <!-- Logo Mark -->
+  <g transform="translate(4, 4)">
+    <rect width="52" height="52" rx="12" fill="#1B4332"/>
+    <!-- Ledger Book -->
+    <path d="M12 12C12 10.8954 12.8954 10 14 10H38C39.1046 10 40 10.8954 40 12V40C40 41.1046 39.1046 42 38 42H14C12.8954 42 12 41.1046 12 40V12Z" fill="#F8F6F0"/>
+    <!-- Spine -->
+    <path d="M12 10H18V42H12V10Z" fill="#52B788"/>
+    <!-- Voice Soundwaves Overlay -->
+    <line x1="22" y1="20" x2="34" y2="20" stroke="#2D6A4F" stroke-width="2" stroke-linecap="round"/>
+    <line x1="22" y1="26" x2="32" y2="26" stroke="#2D6A4F" stroke-width="2" stroke-linecap="round"/>
+    <!-- Mic badge -->
+    <circle cx="36" cy="36" r="10" fill="#F4A261"/>
+    <path d="M36 31C35.1716 31 34.5 31.6716 34.5 32.5V35.5C34.5 36.3284 35.1716 37 36 37C36.8284 37 37.5 36.3284 37.5 35.5V32.5C37.5 31.6716 36.8284 31 36 31Z" fill="#081C15"/>
+    <path d="M33 34.5C33 36.1569 34.3431 37.5 36 37.5C37.6569 37.5 39 36.1569 39 34.5" stroke="#081C15" stroke-width="1.2" stroke-linecap="round"/>
+    <line x1="36" y1="37.5" x2="36" y2="39.5" stroke="#081C15" stroke-width="1.2" stroke-linecap="round"/>
+  </g>
+  <!-- Wordmark -->
+  <text x="68" y="34" font-family="Inter, system-ui, sans-serif" font-size="24" font-weight="800" fill="#1B4332" letter-spacing="-0.5">Bol<tspan fill="#40916C">Khata</tspan></text>
+  <text x="69" y="47" font-family="Inter, system-ui, sans-serif" font-size="9" font-weight="600" fill="#78807B" letter-spacing="0.5">THE LEDGER YOU TALK TO</text>
+</svg>

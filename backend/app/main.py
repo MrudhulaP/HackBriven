@@ -1,5 +1,8 @@
-from fastapi import FastAPI, Depends
+from pathlib import Path
+
+from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -61,6 +64,22 @@ def reset_seed_data(db: Session = Depends(get_db)):
     """Reset the demo database to the initial clean condition."""
     seed_demo_data(db, reset=True)
     return {"message": "Demo data successfully reset to initial clean state"}
+
+frontend_dist = Path(__file__).resolve().parents[2] / "frontend" / "dist"
+
+if frontend_dist.is_dir():
+    frontend_root = frontend_dist.resolve()
+
+    @app.get("/{frontend_path:path}", include_in_schema=False)
+    async def serve_frontend(frontend_path: str):
+        if frontend_path == "api" or frontend_path.startswith("api/"):
+            raise HTTPException(status_code=404, detail="Not Found")
+
+        requested_file = (frontend_root / frontend_path).resolve()
+        if requested_file.is_relative_to(frontend_root) and requested_file.is_file():
+            return FileResponse(requested_file)
+
+        return FileResponse(frontend_root / "index.html")
 
 if __name__ == "__main__":
     import uvicorn
